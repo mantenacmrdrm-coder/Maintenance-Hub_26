@@ -2,10 +2,6 @@ import type {NextConfig} from 'next';
 
 const nextConfig: NextConfig = {
   /* config options here */
-  output: 'export',
-  trailingSlash: true,
-  basePath: '/Maintenance-Hub_26',
-  assetPrefix: '/Maintenance-Hub_26',
   typescript: {
     ignoreBuildErrors: true,
   },
@@ -13,7 +9,6 @@ const nextConfig: NextConfig = {
     ignoreDuringBuilds: true,
   },
   images: {
-    unoptimized: true,
     remotePatterns: [
       {
         protocol: 'https',
