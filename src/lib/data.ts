@@ -1078,10 +1078,10 @@ export const getPreventativeHistoryForEquipment = async (matricule: string) => {
       const fairKey = rowKeys.find(k => k === 'fair' || k === 'f_air');
       const fhydKey = rowKeys.find(k => k === 'fhyd' || k === 'f_hyd');
 
-      if ((fhKey && flag(r[fhKey])) || obs.includes('FH')) preventativeEntries.push({ id: `vidange-fh-${row.id}`, operation: 'Filtre à huile', date, details });
-      if ((fgKey && flag(r[fgKey])) || obs.includes('FG')) preventativeEntries.push({ id: `vidange-fg-${row.id}`, operation: 'Filtre carburant', date, details });
-      if ((fairKey && flag(r[fairKey])) || obs.includes('FAIR')) preventativeEntries.push({ id: `vidange-fa-${row.id}`, operation: 'Filtre à air', date, details });
-      if ((fhydKey && flag(r[fhydKey])) || obs.includes('FHYD')) preventativeEntries.push({ id: `vidange-fhyd-${row.id}`, operation: 'Filtre hydraulique', date, details });
+      if ((fhKey && flag(row[fhKey])) || obs.includes('FH')) preventativeEntries.push({ id: `vidange-fh-${row.id}`, operation: 'Filtre à huile', date, details });
+      if ((fgKey && flag(row[fgKey])) || obs.includes('FG')) preventativeEntries.push({ id: `vidange-fg-${row.id}`, operation: 'Filtre carburant', date, details });
+      if ((fairKey && flag(row[fairKey])) || obs.includes('FAIR')) preventativeEntries.push({ id: `vidange-fa-${row.id}`, operation: 'Filtre à air', date, details });
+      if ((fhydKey && flag(row[fhydKey])) || obs.includes('FHYD')) preventativeEntries.push({ id: `vidange-fhyd-${row.id}`, operation: 'Filtre hydraulique', date, details });
       if (obs.includes('CHAINE')) preventativeEntries.push({ id: `vidange-chaine-${row.id}`, operation: 'chaine', date, details });
     }
 

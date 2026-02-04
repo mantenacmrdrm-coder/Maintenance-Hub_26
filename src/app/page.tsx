@@ -19,8 +19,9 @@ import { RecentActivity } from '@/components/dashboard/recent-activity';
 import { Separator } from '@/components/ui/separator';
 
 
-export default async function DashboardPage({ searchParams }: { searchParams: { year?: string } }) {
-  const year = searchParams.year ? parseInt(searchParams.year, 10) : undefined;
+export default async function DashboardPage({ searchParams }: { searchParams: Promise<{ year?: string }> }) {
+  const params = await searchParams;
+  const year = params.year ? parseInt(params.year, 10) : undefined;
   const data = await getDashboardData(year);
 
   if (data.error) {

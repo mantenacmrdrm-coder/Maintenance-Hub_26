@@ -11,11 +11,11 @@ import type { Equipment, Operation, PreventativeMaintenanceEntry, CurativeMainte
 
 
 type Props = {
-  params: { matricule: string };
+  params: Promise<{ matricule: string }>;
 };
 
 export default async function EquipmentDetailPage({ params }: Props) {
-  const { matricule } = params;
+  const { matricule } = await params;
   
   const [equipment, operations, preventativeHistory, curativeHistory, dynamicStatus] = await Promise.all([
     getEquipmentDetails(matricule),

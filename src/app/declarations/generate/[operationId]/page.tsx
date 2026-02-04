@@ -4,7 +4,8 @@ import { DeclarationForm } from "./form";
 import type { Operation } from "@/lib/types";
 
 export default async function GenerateDeclarationPage({ params }: { params: { operationId: string } }) {
-    const operationId = parseInt(params.operationId, 10);
+    const { operationId: id } = await params;
+    const operationId = parseInt(id, 10);
     if (isNaN(operationId)) {
         notFound();
     }

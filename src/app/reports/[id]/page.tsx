@@ -7,7 +7,8 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 
 export default async function ReportPage({ params }: { params: { id: string } }) {
-  const reportId = parseInt(params.id, 10);
+  const { id } = await params;
+  const reportId = parseInt(id, 10);
   if (isNaN(reportId)) {
     notFound();
   }
