@@ -1,7 +1,13 @@
 import { getOperationForDeclaration } from "@/lib/actions/maintenance-actions";
+import { getAllOperations } from "@/lib/data";
 import { notFound } from "next/navigation";
 import { DeclarationForm } from "./form";
 import type { Operation } from "@/lib/types";
+
+export async function generateStaticParams() {
+    const operations = await getAllOperations();
+    return operations.map(op => ({ operationId: op.id.toString() }));
+}
 
 export default async function GenerateDeclarationPage({ params }: { params: { operationId: string } }) {
     const operationId = parseInt(params.operationId, 10);

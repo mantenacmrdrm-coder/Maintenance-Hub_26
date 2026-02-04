@@ -5,6 +5,7 @@ import {
   getPreventativeHistoryForEquipment,
   getCurativeHistoryForEquipment,
   getEquipmentDynamicStatus,
+  getAllEquipment,
 } from '@/lib/data';
 import { EquipmentDetailClientView } from './equipment-detail-client-view';
 import type { Equipment, Operation, PreventativeMaintenanceEntry, CurativeMaintenanceEntry } from '@/lib/types';
@@ -13,6 +14,11 @@ import type { Equipment, Operation, PreventativeMaintenanceEntry, CurativeMainte
 type Props = {
   params: { matricule: string };
 };
+
+export async function generateStaticParams() {
+    const equipment = await getAllEquipment();
+    return equipment.map(eq => ({ matricule: eq.matricule }));
+}
 
 export default async function EquipmentDetailPage({ params }: Props) {
   const { matricule } = params;

@@ -1,7 +1,13 @@
 import { getDeclaration } from "@/lib/actions/maintenance-actions";
+import { getDeclarationsList } from "@/lib/data";
 import { notFound } from "next/navigation";
 import { EditDeclarationForm } from "./edit-form";
 import type { DeclarationPanne } from "@/lib/types";
+
+export async function generateStaticParams() {
+    const declarations = await getDeclarationsList();
+    return declarations.map(decl => ({ declarationId: decl.id.toString() }));
+}
 
 export default async function EditDeclarationPage({ params }: { params: { declarationId: string } }) {
     const declarationId = parseInt(params.declarationId, 10);
