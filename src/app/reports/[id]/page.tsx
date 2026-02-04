@@ -1,15 +1,10 @@
 import { notFound } from 'next/navigation';
-import { getWeeklyReport, getWeeklyReports } from '@/lib/actions/maintenance-actions';
+import { getWeeklyReport } from '@/lib/actions/maintenance-actions';
 import { ReportView } from './report-view';
 import type { WeeklyReport } from '@/lib/types';
 import { Button } from '@/components/ui/button';
 import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
-
-export async function generateStaticParams() {
-    const reports = await getWeeklyReports();
-    return reports.map(report => ({ id: report.id.toString() }));
-}
 
 export default async function ReportPage({ params }: { params: { id: string } }) {
   const reportId = parseInt(params.id, 10);
