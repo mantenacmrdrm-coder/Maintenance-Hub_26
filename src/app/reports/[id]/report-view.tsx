@@ -57,14 +57,15 @@ export function ReportView({ report }: { report: WeeklyReport }) {
           <div className="flex flex-col items-center">
             <p className="font-bold">Groupe Etudes & Réalisations Hydrauliques</p>
             <p>مجمع الدراسات و انجازات الري</p>
-            <Image
-              src="https://i.imgur.com/QeJyDH2.jpeg"
-              alt="Logo GERHYD"
-              width={100}
-              height={60}
-              className="my-2"
-              data-ai-hint="company logo"
-            />
+            <div className="my-2 w-[100px] h-[60px] flex items-center justify-center">
+              <Image
+                src="/images/logo.png"
+                alt="Logo GERHYD"
+                width={100}
+                height={60}
+                className="my-2 object-contain"
+              />
+            </div>
             <p className="font-bold text-lg">GERHYD-Spa</p>
           </div>
           <div className="text-right">
@@ -92,18 +93,19 @@ export function ReportView({ report }: { report: WeeklyReport }) {
 
         {/* Table */}
         <div className="w-full overflow-x-auto">
-          <table className="w-full border-separate border-spacing-0 text-xs border border-black">
+          {/* MODIFICATION ICI : Ajout de 'border border-black' pour le cadre extérieur */}
+          <table className="w-full border-collapse border border-black text-xs">
             <thead>
               <tr className="bg-gray-200">
-                <th className="border-t border-b border-black p-1">N°</th>
-                <th className="border-t border-b border-black p-1">DESIGNATION</th>
-                <th className="border-t border-b border-black p-1 whitespace-nowrap min-w-max">Matricule</th>
-                <th className="border-t border-b border-black p-1 whitespace-nowrap min-w-max">DATE DE PANNE</th>
-                <th className="border-t border-b border-black p-1">NATURE DE PANNE</th>
-                <th className="border-t border-b border-black p-1">REPARATIONS ET PIECES</th>
-                <th className="border-t border-b border-black p-1 whitespace-nowrap min-w-max">DATE DE SORTIE</th>
-                <th className="border-t border-b border-black p-1">INTERVENANT</th>
-                <th className="border-t border-b border-black p-1">OBS</th>
+                <th className="border-b-2 border-black p-1 text-center w-12">N°</th>
+                <th className="border-b-2 border-black p-1 text-left whitespace-nowrap min-w-max">DESIGNATION</th>
+                <th className="border-b-2 border-black p-1 text-center whitespace-nowrap min-w-max">Matricule</th>
+                <th className="border-b-2 border-black p-1 text-center whitespace-nowrap min-w-max">DATE DE PANNE</th>
+                <th className="border-b-2 border-black p-1 text-left whitespace-nowrap min-w-max">NATURE DE PANNE</th>
+                <th className="border-b-2 border-black p-1 text-left whitespace-nowrap min-w-max">REPARATIONS ET PIECES</th>
+                <th className="border-b-2 border-black p-1 text-center">DATE DE SORTIE</th>
+                <th className="border-b-2 border-black p-1 text-left whitespace-nowrap min-w-max">INTERVENANT</th>
+                <th className="border-b-2 border-black p-1 text-center w-12">OBS</th>
               </tr>
             </thead>
             <tbody>
@@ -114,51 +116,61 @@ export function ReportView({ report }: { report: WeeklyReport }) {
                   </td>
                 </tr>
               ) : (
-                report.pannes.flatMap((panne, panneIndex) =>
-                  (panne.reparations.length > 0 ? panne.reparations : ['']).map((reparation, pieceIndex) => {
+                report.pannes.flatMap((panne, panneIndex) => {
+                  // Indicateur pour savoir si on doit mettre une bordure haute (séparation entre blocs)
+                  const isNotFirstBlock = panneIndex > 0; 
+                  const rowSpan = panne.reparations.length || 1;
+
+                  return (panne.reparations.length > 0 ? panne.reparations : ['']).map((reparation, pieceIndex) => {
                     const isFirst = pieceIndex === 0;
+                    const isLast = pieceIndex === (panne.reparations.length - 1);
 
                     return (
                       <tr key={`${panne.numero}-${pieceIndex}`}>
+                        {/* --- Colonnes fusionnées à gauche --- */}
                         {isFirst && (
                           <>
-                            <td className="border-t border-b border-black p-1 text-center" rowSpan={panne.reparations.length || 1}>
+                            <td className={`p-1 text-center border-b border-black ${isNotFirstBlock ? 'border-t border-black' : ''}`} rowSpan={rowSpan}>
                               {panneIndex + 1}
                             </td>
-                            <td className="border-t border-b border-black p-1" rowSpan={panne.reparations.length || 1}>
+                            <td className={`p-1 border-b border-black ${isNotFirstBlock ? 'border-t border-black' : ''}`} rowSpan={rowSpan}>
                               {panne.designation}
                             </td>
-                            <td className="border-t border-b border-black p-1 whitespace-nowrap min-w-max" rowSpan={panne.reparations.length || 1}>
+                            <td className={`p-1 text-center border-b border-black whitespace-nowrap min-w-max ${isNotFirstBlock ? 'border-t border-black' : ''}`} rowSpan={rowSpan}>
                               {panne.matricule}
                             </td>
-                            <td className="border-t border-b border-black p-1 text-center whitespace-nowrap min-w-max" rowSpan={panne.reparations.length || 1}>
+                            <td className={`p-1 text-center border-b border-black whitespace-nowrap min-w-max ${isNotFirstBlock ? 'border-t border-black' : ''}`} rowSpan={rowSpan}>
                               {panne.date_panne}
                             </td>
-                            <td className="border-t border-b border-black p-1" rowSpan={panne.reparations.length || 1}>
+                            <td className={`p-1 border-b border-black ${isNotFirstBlock ? 'border-t border-black' : ''}`} rowSpan={rowSpan}>
                               {panne.nature_panne}
                             </td>
                           </>
                         )}
 
-                        <td className="p-1 border-b border-black">{reparation}</td>
+                        {/* --- Colonne Réparations (Logique spéciale) --- */}
+                        <td className={`p-1 text-left ${isFirst && isNotFirstBlock ? 'border-t border-black' : ''} ${isLast ? 'border-b border-black' : ''}`}>
+                          {reparation}
+                        </td>
                         
+                        {/* --- Colonnes fusionnées à droite --- */}
                         {isFirst && (
                              <>
-                                <td className="border-t border-b border-black p-1 text-center whitespace-nowrap min-w-max" rowSpan={panne.reparations.length || 1}>
+                                <td className={`p-1 text-center border-b border-black whitespace-nowrap min-w-max ${isNotFirstBlock ? 'border-t border-black' : ''}`} rowSpan={rowSpan}>
                                   {panne.date_sortie}
                                 </td>
-                                <td className="border-t border-b border-black p-1" rowSpan={panne.reparations.length || 1}>
+                                <td className={`p-1 border-b border-black ${isNotFirstBlock ? 'border-t border-black' : ''}`} rowSpan={rowSpan}>
                                   {panne.intervenant}
                                 </td>
-                                <td className="border-t border-b border-black p-1" rowSpan={panne.reparations.length || 1}>
+                                <td className={`p-1 border-b border-black ${isNotFirstBlock ? 'border-t border-black' : ''}`} rowSpan={rowSpan}>
                                   {panne.obs || ''}
                                 </td>
                              </>
                         )}
                       </tr>
                     );
-                  })
-                )
+                  });
+                })
               )}
             </tbody>
           </table>

@@ -52,7 +52,7 @@ export function DeclarationView({ declaration }: { declaration: DeclarationPanne
                     <div className="flex flex-col items-center">
                         <p className="font-bold text-[9px]">Groupe Etudes & Réalisations Hydrauliques</p>
                         <p className='text-[9px]'>مجمع الدراسات و انجازات الري</p>
-                        <Image src="https://i.imgur.com/QeJyDH2.jpeg" alt="Logo GERHYD" width={80} height={48} className="my-1" data-ai-hint="company logo"/>
+                        <Image src="/images/gerhyd-logo.jpg" alt="Logo GERHYD" width={80} height={48} className="my-1" data-ai-hint="company logo"/>
                         <p className="font-bold text-base">GERHYD-Spa</p>
                     </div>
                     <div className="text-right text-[8px] leading-tight">
