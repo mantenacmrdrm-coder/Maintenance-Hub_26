@@ -1,9 +1,8 @@
 'use client';
-import { useState, useTransition, useMemo } from 'react';
+import { useState, useMemo } from 'react';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { Checkbox } from '@/components/ui/checkbox';
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
-import { updateParam } from '@/lib/actions/maintenance-actions';
 import { useToast } from '@/hooks/use-toast';
 import { Loader2 } from 'lucide-react';
 import { Input } from '@/components/ui/input';
@@ -21,7 +20,7 @@ type Props = {
 export function ParametersTable({ data, headers }: Props) {
     const [tableData, setTableData] = useState(data);
     const [filter, setFilter] = useState('');
-    const [isPending, startTransition] = useTransition();
+    const [isUpdating, setIsUpdating] = useState(false);
     const { toast } = useToast();
 
     const { opCol, intervalCols, levelCols, visibleHeaders } = useMemo(() => {
@@ -46,10 +45,18 @@ export function ParametersTable({ data, headers }: Props) {
     }, [headers]);
 
 
-    const handleUpdate = (id: number, column: string, value: string | null) => {
-        startTransition(async () => {
-            try {
-                await updateParam(id, column, value);
+    const handleUpdate = async (id: number, column: string, value: string | null) => {
+        setIsUpdating(true);
+        try {
+            const response = await fetch('/api/update-param', {
+                method: 'PUT',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify({ id, column, value }),
+            });
+
+            const result = await response.json();
+
+            if (result.success) {
                 // Update local state for immediate feedback
                 setTableData(prevData =>
                     prevData.map(row =>
@@ -60,16 +67,26 @@ export function ParametersTable({ data, headers }: Props) {
                     title: 'Succès',
                     description: 'Paramètre mis à jour. Le planning doit être regénéré.',
                 });
-            } catch (error: any) {
+            } else {
                 toast({
                     variant: 'destructive',
                     title: 'Erreur',
-                    description: `Impossible de mettre à jour le paramètre : ${error.message}`,
+                    description: `Impossible de mettre à jour le paramètre : ${result.message}`,
                 });
-                 // Revert optimistic update on error
-                 setTableData(data);
+                // Revert optimistic update on error
+                setTableData(data);
             }
-        });
+        } catch (error: any) {
+            toast({
+                variant: 'destructive',
+                title: 'Erreur',
+                description: `Erreur réseau : ${error.message}`,
+            });
+            // Revert optimistic update on error
+            setTableData(data);
+        } finally {
+            setIsUpdating(false);
+        }
     };
     
     const filteredData = useMemo(() => {
@@ -90,7 +107,7 @@ export function ParametersTable({ data, headers }: Props) {
                     onChange={e => setFilter(e.target.value)}
                     className="max-w-sm"
                 />
-                {isPending && <Loader2 className="h-5 w-5 animate-spin" />}
+                {isUpdating && <Loader2 className="h-5 w-5 animate-spin" />}
             </div>
             <div className="rounded-md border">
                 <Table>
@@ -110,7 +127,7 @@ export function ParametersTable({ data, headers }: Props) {
                                         <Select
                                             value={row[col] ?? 'none'}
                                             onValueChange={(value) => handleUpdate(row.id, col, value === 'none' ? null : value)}
-                                            disabled={isPending}
+                                            disabled={isUpdating}
                                         >
                                             <SelectTrigger className="w-20">
                                                 <SelectValue placeholder="-" />
@@ -128,7 +145,7 @@ export function ParametersTable({ data, headers }: Props) {
                                          <Checkbox
                                             checked={row[colInfo.name] === colInfo.level}
                                             onCheckedChange={(checked) => handleUpdate(row.id, colInfo.name, checked ? colInfo.level : null)}
-                                            disabled={isPending}
+                                            disabled={isUpdating}
                                             aria-label={`Niveau ${colInfo.level}`}
                                         />
                                     </TableCell>

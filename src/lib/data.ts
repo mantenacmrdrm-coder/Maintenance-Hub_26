@@ -92,14 +92,29 @@ const getDb = async () => {
 
 const withDb = async <T>(operation: (db: Awaited<ReturnType<typeof getDb>>) => Promise<T>): Promise<T> => {
     let db: Awaited<ReturnType<typeof getDb>> | null = null;
+    let inTransaction = false;
     try {
         db = await getDb();
+        // Enable foreign keys
+        await db.run('PRAGMA foreign_keys = ON');
         return await operation(db);
     } catch (error) {
         console.error('Database operation failed:', error);
         throw error;
     } finally {
-        await db?.close();
+        try {
+            if (db && inTransaction) {
+                // Only rollback if a transaction was actually started
+                await db.run('ROLLBACK');
+            }
+        } catch (rollbackError) {
+            // Silently ignore if no transaction is active
+        }
+        try {
+            await db?.close();
+        } catch (closeError) {
+            console.error('Error closing database:', closeError);
+        }
     }
 };
 
@@ -227,20 +242,30 @@ export async function initializeDatabase() {
                 const categories = (await db.all('SELECT DISTINCT categorie FROM matrice')).map(r => r.categorie).filter(Boolean);
                 const insertStmt = await db.prepare('INSERT OR IGNORE INTO category_entretiens (category, entretien, is_active) VALUES (?, ?, ?)');
 
-                await db.run('BEGIN TRANSACTION');
-                for (const category of categories) {
-                    const categoryNorm = normalize(category || '').replace(/,/g, '');
-                    const exclusions = EXCLUSIONS_NORM[categoryNorm] || new Set();
+                try {
+                    await db.run('BEGIN TRANSACTION');
+                    for (const category of categories) {
+                        const categoryNorm = normalize(category || '').replace(/,/g, '');
+                        const exclusions = EXCLUSIONS_NORM[categoryNorm] || new Set();
 
-                    for (const entretien of OFFICIAL_ENTRETIENS) {
-                        const entretienNorm = normalize(entretien);
-                        const isActive = !exclusions.has(entretienNorm);
-                        await insertStmt.run(category, entretien, isActive ? 1 : 0);
+                        for (const entretien of OFFICIAL_ENTRETIENS) {
+                            const entretienNorm = normalize(entretien);
+                            const isActive = !exclusions.has(entretienNorm);
+                            await insertStmt.run(category, entretien, isActive ? 1 : 0);
+                        }
                     }
+                    await db.run('COMMIT');
+                    messages.push('Table category_entretiens created and populated.');
+                } catch (txError: any) {
+                    try {
+                        await db.run('ROLLBACK');
+                    } catch (rollbackErr) {
+                        console.error('Rollback failed:', rollbackErr);
+                    }
+                    throw txError;
+                } finally {
+                    await insertStmt.finalize();
                 }
-                await insertStmt.finalize();
-                await db.run('COMMIT');
-                messages.push('Table category_entretiens created and populated.');
             } catch (error: any) {
                 messages.push(`Category/Entretien setup error: ${error.message}`);
             }
