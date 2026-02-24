@@ -1,13 +1,35 @@
-import type {NextConfig} from 'next';
+import type { NextConfig } from 'next';
 
 const nextConfig: NextConfig = {
-  /* config options here */
   typescript: {
     ignoreBuildErrors: true,
   },
-  eslint: {
-    ignoreDuringBuilds: true,
+
+  // ✅ Option racine pour le développement (Next.js 14.2+)
+  allowedDevOrigins: [
+    'legendary-adventure-wrp7x9pjprpvfgvw7-3000.app.github.dev',
+    '*.app.github.dev',
+    '*.github.dev',
+    'localhost:3000',
+    '127.0.0.1:3000',
+  ],
+
+  // ✅ Option spécifique aux Server Actions (dans experimental)
+  experimental: {
+    serverActions: {
+      allowedOrigins: [
+        'legendary-adventure-wrp7x9pjprpvfgvw7-3000.app.github.dev',
+        '*.app.github.dev',
+        '*.github.dev',
+        'localhost:3000',
+        '127.0.0.1:3000',
+      ],
+      // Optionnel : désactiver la vérification CSRF en dev uniquement
+      // ⚠️ À ne jamais utiliser en production
+      bodySizeLimit: '2mb',
+    },
   },
+
   images: {
     remotePatterns: [
       {
@@ -31,6 +53,12 @@ const nextConfig: NextConfig = {
       {
         protocol: 'https',
         hostname: 'i.imgur.com',
+        port: '',
+        pathname: '/**',
+      },
+      {
+        protocol: 'https',
+        hostname: 'lh3.googleusercontent.com',
         port: '',
         pathname: '/**',
       },

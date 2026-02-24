@@ -38,6 +38,15 @@ export function StatCards({ data }: { data: DashboardData }) {
     ? Math.round((data.followUpStats.totalRealise / data.followUpStats.totalPlanifie) * 100)
     : 0;
 
+  const breakdownTitle = data.month ? 'Pannes du Mois' : 'Pannes ce Mois-ci';
+  
+  let breakdownDescription = `Pour l'année ${data.year}`;
+  if (data.month) {
+    breakdownDescription = `En ${dayjs().month(data.month - 1).format('MMMM')}`;
+  } else if (data.year === new Date().getFullYear()) {
+    breakdownDescription = `En ${dayjs().format('MMM')}`;
+  }
+
   return (
     <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
       <StatCard
@@ -52,7 +61,7 @@ export function StatCards({ data }: { data: DashboardData }) {
         value={data.operationCount.toLocaleString('fr-FR')}
         icon={ClipboardList}
         iconContainerClass="icon-container-accent"
-        description='Total enregistrées'
+        description={`Total pour ${data.year}`}
       />
       <StatCard
         title="Taux de Réalisation"
@@ -62,11 +71,11 @@ export function StatCards({ data }: { data: DashboardData }) {
         description={`Préventif pour ${data.year}`}
       />
        <StatCard
-        title="Pannes ce Mois-ci"
+        title={breakdownTitle}
         value={data.breakdownsThisMonth !== null ? data.breakdownsThisMonth.toLocaleString('fr-FR') : '-'}
         icon={AlertTriangle}
         iconContainerClass="icon-container-destructive"
-        description={data.breakdownsThisMonth !== null ? `En ${dayjs().format('MMM')}`: 'Année passée'}
+        description={data.breakdownsThisMonth !== null ? breakdownDescription : `Année ${data.year}`}
       />
     </div>
   );

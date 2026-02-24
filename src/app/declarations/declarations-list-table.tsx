@@ -12,11 +12,13 @@ import {
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
 import { Eye, Pencil } from 'lucide-react';
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
+import dayjs from 'dayjs';
+import 'dayjs/locale/fr';
 import { DeleteDeclarationButton } from './delete-declaration-button';
 import { Badge } from '@/components/ui/badge';
 import { Input } from '@/components/ui/input';
+
+dayjs.locale('fr');
 
 type DeclarationListItem = {
     id: number;
@@ -73,7 +75,7 @@ export function DeclarationsListTable({ declarations }: { declarations: Declarat
                     {declaration.panne_declaree}
                   </TableCell>
                   <TableCell>
-                    {format(new Date(declaration.generated_at), 'dd/MM/yyyy HH:mm', {locale: fr})}
+                    {dayjs(declaration.generated_at).format('DD/MM/YYYY HH:mm')}
                   </TableCell>
                   <TableCell className="text-right">
                     <div className="flex justify-end gap-2">

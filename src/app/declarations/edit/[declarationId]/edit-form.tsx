@@ -64,7 +64,7 @@ export function EditDeclarationForm({ declaration }: { declaration: DeclarationP
 
   const pieces = form.watch('pieces');
   const montantMainOeuvre = form.watch('montant_main_oeuvre') || 0;
-  const totalPieces = pieces.reduce((acc, piece) => acc + (piece.montant || 0) * (piece.quantite || 0), 0);
+  const totalPieces = pieces.reduce((acc, piece) => acc + (piece.montant || 0), 0);
   const totalGlobal = totalPieces + montantMainOeuvre;
 
   function onSubmit(values: DeclarationFormValues) {

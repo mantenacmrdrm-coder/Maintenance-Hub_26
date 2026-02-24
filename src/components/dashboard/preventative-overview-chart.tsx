@@ -9,11 +9,11 @@ type Props = {
 };
 
 const barConfig = {
-    vidange: { color: 'hsl(var(--chart-1))', label: 'Vidanges' },
-    graissage: { color: 'hsl(var(--chart-2))', label: 'Graissages' },
-    transmission: { color: 'hsl(var(--chart-3))', label: 'Transmissions' },
-    hydraulique: { color: 'hsl(var(--chart-4))', label: 'Hydraulique' },
-    autres: { color: 'hsl(var(--chart-5))', label: 'Autres' },
+    vidange: { color: 'hsl(var(--destructive))', label: 'Vidanges' },
+    graissage: { color: 'hsl(var(--success))', label: 'Graissages' },
+    transmission: { color: 'hsl(var(--warning))', label: 'Transmissions' },
+    hydraulique: { color: 'hsl(var(--foreground))', label: 'Hydraulique' },
+    autres: { color: 'hsl(var(--muted-foreground))', label: 'Autres' },
 };
 
 export function PreventativeOverviewChart({ data }: Props) {

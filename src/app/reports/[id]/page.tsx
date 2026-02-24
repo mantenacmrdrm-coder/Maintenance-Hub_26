@@ -7,8 +7,8 @@ import Link from 'next/link';
 import { ArrowLeft } from 'lucide-react';
 
 export default async function ReportPage({ params }: { params: { id: string } }) {
-  const { id } = await params;
-  const reportId = parseInt(id, 10);
+  const resolvedParams = await params;
+  const reportId = parseInt(resolvedParams.id, 10);
   if (isNaN(reportId)) {
     notFound();
   }
@@ -21,7 +21,7 @@ export default async function ReportPage({ params }: { params: { id: string } })
 
   return (
     <div className="space-y-4">
-        <Button asChild variant="outline">
+        <Button asChild variant="outline" className="print:hidden">
             <Link href="/reports">
                 <ArrowLeft className="mr-2 h-4 w-4" />
                 Retour à la liste des rapports

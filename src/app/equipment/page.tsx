@@ -1,7 +1,9 @@
 import { getAllEquipment } from '@/lib/data';
 import { EquipmentDataTable } from './data-table';
 import { Alert, AlertDescription, AlertTitle } from '@/components/ui/alert';
-import { AlertTriangle } from 'lucide-react';
+import { AlertTriangle, PlusCircle } from 'lucide-react';
+import { Button } from '@/components/ui/button';
+import Link from 'next/link';
 
 export default async function EquipmentPage() {
   const equipments = await getAllEquipment();
@@ -9,10 +11,20 @@ export default async function EquipmentPage() {
   return (
     <div className="flex flex-col gap-8">
       <header>
-        <h1 className="text-3xl font-bold tracking-tight">Équipements</h1>
-        <p className="text-muted-foreground">
-          Gérez et consultez la liste de vos équipements.
-        </p>
+        <div className="flex justify-between items-center flex-wrap gap-4">
+          <div>
+            <h1 className="text-3xl font-bold tracking-tight">Équipements</h1>
+            <p className="text-muted-foreground">
+              Gérez et consultez la liste de vos équipements.
+            </p>
+          </div>
+          <Button asChild>
+            <Link href="/equipment/new">
+                <PlusCircle className="mr-2 h-4 w-4" />
+                Nouvel équipement
+            </Link>
+          </Button>
+        </div>
       </header>
        <main>
         {equipments.length > 0 ? (

@@ -1,3 +1,4 @@
+
 'use client';
 
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -42,22 +43,26 @@ type DeclarationFormValues = z.infer<typeof formSchema>;
 
 function parsePieces(piecesString: string | undefined): Partial<z.infer<typeof pieceSchema>>[] {
     if (!piecesString) return [];
-    
-    return piecesString.split('-').map(p => p.trim()).filter(Boolean).map(pieceText => {
-        let quantite = 1;
-        let designation = pieceText;
 
+    // Use '-' as the only delimiter. If not present, the whole string is one part.
+    const parts = piecesString.split('-').map(p => p.trim()).filter(Boolean);
+
+    return parts.map(pieceText => {
+        // This part of the logic tries to extract quantity, which can be kept.
         const match = pieceText.match(/^(\d+)\s*(?:F\/P)?\s*(.*)$/i);
         if (match) {
-            quantite = parseInt(match[1], 10) || 1;
-            designation = match[2].trim();
-        } else if (designation.toLowerCase().startsWith('f/p ')) {
-            designation = designation.substring(4);
+            return {
+                quantite: parseInt(match[1], 10) || 1,
+                designation: match[2].trim(),
+                montant: 0,
+                reference: ''
+            };
         }
-
+        
+        // Default if no quantity is found at the beginning.
         return {
-            designation,
-            quantite,
+            designation: pieceText.replace(/^f\/p\s*/i, '').trim(),
+            quantite: 1,
             montant: 0,
             reference: ''
         };
@@ -72,6 +77,10 @@ export function DeclarationForm({ operation }: { operation: Operation }) {
   const form = useForm<DeclarationFormValues>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      chauffeur_conducteur: '',
+      diagnostique_intervenant: '',
+      causes: '',
+      obs_reserves: '',
       pieces: parsePieces(operation.pieces),
       intervenants: [{ type: 'Externe', description: '' }],
       montant_main_oeuvre: 0,
@@ -83,7 +92,7 @@ export function DeclarationForm({ operation }: { operation: Operation }) {
 
   const pieces = form.watch('pieces');
   const montantMainOeuvre = form.watch('montant_main_oeuvre') || 0;
-  const totalPieces = pieces.reduce((acc, piece) => acc + (piece.montant || 0) * (piece.quantite || 0), 0);
+  const totalPieces = pieces.reduce((acc, piece) => acc + (piece.montant || 0), 0);
   const totalGlobal = totalPieces + montantMainOeuvre;
 
   function onSubmit(values: DeclarationFormValues) {
@@ -170,7 +179,11 @@ export function DeclarationForm({ operation }: { operation: Operation }) {
                                     <FormItem className="col-span-2 md:col-span-1"><FormLabel className="text-xs">Qté</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
                                 )}/>
                                  <FormField control={form.control} name={`pieces.${index}.montant`} render={({ field }) => (
-                                    <FormItem className="col-span-4 md:col-span-3"><FormLabel className="text-xs">Montant</FormLabel><FormControl><Input type="number" {...field} /></FormControl><FormMessage /></FormItem>
+                                    <FormItem className="col-span-4 md:col-span-3">
+                                        <FormLabel className="text-xs">Montant Ligne</FormLabel>
+                                        <FormControl><Input type="number" {...field} /></FormControl>
+                                        <FormMessage />
+                                    </FormItem>
                                 )}/>
                                 <div className="col-span-2 md:col-span-1 flex items-end h-full">
                                     <Button type="button" variant="destructive" size="icon" onClick={() => removePiece(index)}><Trash2 className="h-4 w-4" /></Button>

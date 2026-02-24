@@ -253,7 +253,6 @@ export function EquipmentDetailClientView({ equipment, operations, preventativeH
                 <div><strong>Marque:</strong> {equipment.marque}</div>
                 <div><strong>Catégorie:</strong> {equipment.categorie}</div>
                 <div><strong>Année de mise en service:</strong> {equipment.annee || '-'}</div>
-                <div><strong>Compteur Actuel:</strong> <span className='font-bold'>{equipment.km_heures_actuel?.toLocaleString('fr-FR') || 0} {equipment.categorie === 'Camion' ? 'km' : 'heures'}</span></div>
                  {lastCounter && <div><strong>Dernier Relevé:</strong> <span className='font-bold'>{lastCounter}</span> ({lastCounterDate})</div>}
                 <div className='flex items-center gap-2'>
                   <strong>Statut:</strong> 
@@ -347,16 +346,6 @@ export function EquipmentDetailClientView({ equipment, operations, preventativeH
       
       <Card className="dashboard-card">
         <CardHeader>
-          <CardTitle>Historique Global des Interventions</CardTitle>
-          <CardDescription>Recherchez et filtrez toutes les opérations enregistrées pour cet équipement.</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <OperationsHistoryTable operations={operations} />
-        </CardContent>
-      </Card>
-
-      <Card className="dashboard-card">
-        <CardHeader>
           <CardTitle>Détail des Interventions</CardTitle>
         </CardHeader>
         <CardContent>
@@ -372,6 +361,16 @@ export function EquipmentDetailClientView({ equipment, operations, preventativeH
                    <CurativeMaintenanceHistory history={curativeHistory} />
                 </TabsContent>
             </Tabs>
+        </CardContent>
+      </Card>
+
+      <Card className="dashboard-card">
+        <CardHeader>
+          <CardTitle>Historique Global des Interventions</CardTitle>
+          <CardDescription>Recherchez et filtrez toutes les opérations enregistrées pour cet équipement.</CardDescription>
+        </CardHeader>
+        <CardContent>
+          <OperationsHistoryTable operations={operations} />
         </CardContent>
       </Card>
     </div>

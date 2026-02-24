@@ -8,7 +8,6 @@ import { generateWeeklyReportAction } from '@/lib/actions/maintenance-actions';
 import { useToast } from '@/hooks/use-toast';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
-import { fr } from 'date-fns/locale';
 
 export function GenerateReportButton() {
     const [isPending, startTransition] = useTransition();
@@ -28,7 +27,7 @@ export function GenerateReportButton() {
         }
 
         startTransition(async () => {
-            const result = await generateWeeklyReportAction(date);
+            const result = await generateWeeklyReportAction(date as Date);
             if (result.success && result.reportId) {
                 toast({
                     title: 'Rapport généré',
@@ -68,7 +67,6 @@ export function GenerateReportButton() {
                         selected={date}
                         onSelect={setDate}
                         initialFocus
-                        locale={fr}
                     />
                     <Button onClick={handleClick} disabled={isPending || !date} className="w-full">
                         {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}

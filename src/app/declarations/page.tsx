@@ -11,8 +11,6 @@ import { FilePlus2 } from 'lucide-react';
 import { getDeclarationsListAction } from '@/lib/actions/maintenance-actions';
 import { DeclarationsListTable } from './declarations-list-table';
 
-export const dynamic = 'force-dynamic';
-
 export default async function DeclarationsListPage() {
   const declarations = await getDeclarationsListAction();
 

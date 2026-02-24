@@ -15,8 +15,10 @@ import {
   Database,
   CalendarCheck2,
   Cog,
-  FileSpreadsheet,
-  FileText,
+  FolderKanban,
+  Package,
+  Droplet,
+  LogIn,
 } from 'lucide-react';
 
 const navItems = [
@@ -46,19 +48,29 @@ const navItems = [
     icon: CalendarCheck2,
   },
   {
+    href: '/stock',
+    label: 'Saisie Consommations',
+    icon: Package,
+  },
+   {
+    href: '/stock-entries',
+    label: 'Entrées de Stock',
+    icon: LogIn,
+  },
+  {
+    href: '/consommations',
+    label: 'Consommations',
+    icon: Droplet,
+  },
+  {
     href: '/alerts',
     label: 'Alertes',
     icon: Bell,
   },
    {
-    href: '/reports',
-    label: 'Rapports',
-    icon: FileSpreadsheet,
-  },
-  {
-    href: '/declarations',
-    label: 'Déclarations',
-    icon: FileText,
+    href: '/documents',
+    label: 'Documents',
+    icon: FolderKanban,
   },
   {
     href: '/history',

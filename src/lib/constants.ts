@@ -18,3 +18,8 @@ export const planningOperationNameMapping = {
     'GR': 'Graissage général',
     'HYDRAULIQUE': 'circuit hydraulique',
 } as const;
+
+export const LUBRICANT_TYPES = [
+    't32', '15w40_4400', '10w', '15w40', '90', '15w40_v', 
+    'hvol', 'tvol', 't30', 'graisse', 't46', '15w40_quartz'
+] as const;

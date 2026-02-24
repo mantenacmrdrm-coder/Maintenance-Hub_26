@@ -12,16 +12,19 @@ import {
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import type { Operation } from '@/lib/types';
-import { format, parse } from 'date-fns';
+import dayjs from 'dayjs';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
+
+dayjs.extend(customParseFormat);
 
 const formatDate = (dateString: string | null | undefined) => {
   if (!dateString) return '-';
   try {
-    const date = parse(dateString, 'dd/MM/yyyy', new Date());
-    if (isNaN(date.getTime())) {
+    const date = dayjs(dateString, 'DD/MM/YYYY');
+    if (!date.isValid()) {
         return dateString;
     }
-    return format(date, 'dd/MM/yyyy');
+    return date.format('DD/MM/YYYY');
   } catch (e) {
     return dateString;
   }

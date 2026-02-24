@@ -1,4 +1,3 @@
-
 'use client';
 
 import React, { useState, useMemo } from 'react';
@@ -13,10 +12,15 @@ import {
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import type { Operation } from '@/lib/types';
-import { format, parse } from 'date-fns';
+import dayjs from 'dayjs';
+import customParseFormat from 'dayjs/plugin/customParseFormat';
 import { Button } from '@/components/ui/button';
-import { Download } from 'lucide-react';
+import { Download, Pencil } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
+import Link from 'next/link';
+import { DeleteOperationButton } from './delete-operation-button';
+
+dayjs.extend(customParseFormat);
 
 export function OperationsDataTable({ data }: { data: Operation[] }) {
   const [filter, setFilter] = useState('');
@@ -43,16 +47,15 @@ export function OperationsDataTable({ data }: { data: Operation[] }) {
   };
   
   const formatDate = (dateString: string | null | undefined) => {
-    if (!dateString) return '-';
+    if (!dateString || dateString.toLowerCase().includes('cour')) return 'En Cours';
     try {
-      // We are parsing a 'dd/MM/yyyy' string
-      const date = parse(dateString, 'dd/MM/yyyy', new Date());
-      if (isNaN(date.getTime())) {
-          return dateString; // Return original string if parsing fails
+      const date = dayjs(dateString.trim(), 'DD/MM/YYYY');
+      if (date.isValid()) {
+          return date.format('DD/MM/YYYY');
       }
-      return format(date, 'dd/MM/yyyy');
+      return dateString; // Return original string if parsing fails
     } catch (e) {
-      return dateString; // In case of any error, return original string
+      return dateString; // Return original on error
     }
   };
 
@@ -131,6 +134,7 @@ export function OperationsDataTable({ data }: { data: Operation[] }) {
               <TableHead>Date Programmée</TableHead>
               <TableHead>Date Réalisation</TableHead>
               <TableHead>Nature</TableHead>
+              <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
           <TableBody>
@@ -155,11 +159,21 @@ export function OperationsDataTable({ data }: { data: Operation[] }) {
                   <TableCell>
                     <Badge variant={statusVariant[op.nature] || 'outline'}>{op.nature}</Badge>
                   </TableCell>
+                  <TableCell className="text-right">
+                    <div className="flex justify-end gap-2">
+                      <Button asChild variant="ghost" size="icon">
+                        <Link href={`/operations/edit/${op.id}`}>
+                          <Pencil className="h-4 w-4" />
+                        </Link>
+                      </Button>
+                      <DeleteOperationButton operationId={op.id} />
+                    </div>
+                  </TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
+                <TableCell colSpan={7} className="h-24 text-center">
                   Aucun résultat.
                 </TableCell>
               </TableRow>

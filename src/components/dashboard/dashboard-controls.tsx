@@ -1,6 +1,6 @@
 'use client';
 
-import { useRouter } from 'next/navigation';
+import { useRouter, useSearchParams } from 'next/navigation';
 import {
   Select,
   SelectContent,
@@ -13,9 +13,12 @@ import { Printer } from 'lucide-react';
 
 export function YearSelector({ currentYear }: { currentYear: string }) {
   const router = useRouter();
+  const searchParams = useSearchParams();
 
   const handleYearChange = (newYear: string) => {
-    router.push(`/?year=${newYear}`);
+    const params = new URLSearchParams(searchParams.toString());
+    params.set('year', newYear);
+    router.push(`/?${params.toString()}`);
   };
 
   return (
@@ -30,6 +33,44 @@ export function YearSelector({ currentYear }: { currentYear: string }) {
       </SelectContent>
     </Select>
   );
+}
+
+export function MonthSelector({ currentMonth }: { currentMonth: string }) {
+    const router = useRouter();
+    const searchParams = useSearchParams();
+
+    const handleMonthChange = (newMonth: string) => {
+        const params = new URLSearchParams(searchParams.toString());
+        if (newMonth === 'all') {
+            params.delete('month');
+        } else {
+            params.set('month', newMonth);
+        }
+        router.push(`/?${params.toString()}`);
+    };
+
+    const months = [
+        { value: 'all', label: 'Toute l\'année' },
+        ...Array.from({ length: 12 }, (_, i) => ({
+            value: (i + 1).toString(),
+            label: new Date(0, i).toLocaleString('fr-FR', { month: 'long' }),
+        }))
+    ];
+
+    return (
+        <Select value={currentMonth} onValueChange={handleMonthChange}>
+            <SelectTrigger className="w-[180px]">
+                <SelectValue placeholder="Mois" />
+            </SelectTrigger>
+            <SelectContent>
+                {months.map(m => (
+                    <SelectItem key={m.value} value={m.value}>
+                        {m.label.charAt(0).toUpperCase() + m.label.slice(1)}
+                    </SelectItem>
+                ))}
+            </SelectContent>
+        </Select>
+    );
 }
 
 export function PrintButton() {

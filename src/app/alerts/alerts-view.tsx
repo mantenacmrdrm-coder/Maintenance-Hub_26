@@ -2,13 +2,20 @@
 
 import { useState, useTransition } from 'react';
 import { Card, CardContent, CardHeader, CardTitle } from '@/components/ui/card';
-import { Slider } from '@/components/ui/slider';
 import { Button } from '@/components/ui/button';
 import { useToast } from '@/hooks/use-toast';
 import { getPreventativeAlerts } from '@/lib/actions/maintenance-actions';
 import type { Alert } from '@/lib/types';
-import { Loader2, AlertTriangle, CheckCircle, Info, Download } from 'lucide-react';
+import { Loader2, AlertTriangle, CheckCircle, Info, Download, CalendarIcon, Search, ChevronDown } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
+import { Calendar } from '@/components/ui/calendar';
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select';
+import { DropdownMenu, DropdownMenuTrigger, DropdownMenuContent, DropdownMenuCheckboxItem, DropdownMenuSeparator } from '@/components/ui/dropdown-menu';
+import { OFFICIAL_ENTRETIENS } from '@/lib/constants';
+import { cn } from '@/lib/utils';
+import dayjs from 'dayjs';
+import { Input } from '@/components/ui/input';
 
 function AlertCard({ alert }: { alert: Alert }) {
   const urgencyConfig = {
@@ -38,15 +45,19 @@ function AlertCard({ alert }: { alert: Alert }) {
     <Card>
       <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
         <CardTitle className="text-base font-medium">{alert.operation}</CardTitle>
-        <Badge variant={urgencyConfig.variant as any} className={urgencyConfig.className}>
-          {urgencyConfig.icon}
-          <span className='ml-2'>{urgencyConfig.label}</span>
-        </Badge>
+        <div className="flex items-center gap-2">
+            {alert.status && <Badge className="bg-black text-white hover:bg-black/80">{alert.status}</Badge>}
+            <Badge variant={urgencyConfig.variant as any} className={urgencyConfig.className}>
+              {urgencyConfig.icon}
+              <span className='ml-2'>{urgencyConfig.label}</span>
+            </Badge>
+        </div>
       </CardHeader>
       <CardContent className="text-sm space-y-2">
         <div>
-          <p className='font-semibold'>{alert.equipmentDesignation || alert.equipmentId}</p>
-          <p className="text-muted-foreground">Échéance: {alert.dueDate}</p>
+          <p className='font-semibold'>{alert.equipmentDesignation}</p>
+          <p className='text-sm text-primary font-mono'>{alert.equipmentId}</p>
+          <p className="text-muted-foreground mt-1">Échéance: {alert.dueDate}</p>
         </div>
         <Badge variant="secondary">Niveau: {alert.niveau}</Badge>
       </CardContent>
@@ -55,15 +66,35 @@ function AlertCard({ alert }: { alert: Alert }) {
 }
 
 export function AlertsView() {
-  const [alertWindowDays, setAlertWindowDays] = useState(30);
+  const [dateRange, setDateRange] = useState<{ from: Date | undefined, to: Date | undefined }>({
+    from: new Date(),
+    to: dayjs().add(30, 'day').toDate(),
+  });
+  const [selectedEntretiens, setSelectedEntretiens] = useState<string[]>([]);
+  const [niveau, setNiveau] = useState('all');
+  const [matricule, setMatricule] = useState('');
   const [alerts, setAlerts] = useState<Alert[] | null>(null);
   const [isPending, startTransition] = useTransition();
   const { toast } = useToast();
 
   const handleGenerateAlerts = () => {
+    if (!dateRange.from || !dateRange.to) {
+        toast({
+            variant: 'destructive',
+            title: 'Dates invalides',
+            description: 'Veuillez sélectionner une plage de dates complète.',
+        });
+        return;
+    }
     startTransition(async () => {
       try {
-        const result = await getPreventativeAlerts(alertWindowDays);
+        const result = await getPreventativeAlerts({
+            startDate: dateRange.from as Date,
+            endDate: dateRange.to as Date,
+            entretiens: selectedEntretiens,
+            niveau: niveau,
+            matricule: matricule,
+        });
         setAlerts(result);
         if (result.length > 0) {
           toast({
@@ -92,7 +123,7 @@ export function AlertsView() {
       return;
     }
 
-    const headers = ['Matricule', 'Désignation', 'Opération', 'Échéance', 'Urgence', 'Niveau'];
+    const headers = ['Matricule', 'Désignation', 'Opération', 'Échéance', 'Urgence', 'Niveau', 'Statut'];
     const csvContent = [
       headers.join(';'),
       ...alerts.map(alert => [
@@ -102,6 +133,7 @@ export function AlertsView() {
         `"${alert.dueDate}"`,
         `"${alert.urgency}"`,
         `"${alert.niveau}"`,
+        `"${alert.status || ''}"`,
       ].join(';'))
     ].join('\n');
 
@@ -118,29 +150,112 @@ export function AlertsView() {
       description: `${alerts.length} alertes ont été exportées.`,
     });
   };
+  
+  const getEntretiensButtonLabel = () => {
+    if (selectedEntretiens.length === 0) return "Tous les entretiens";
+    if (selectedEntretiens.length > 2) return `${selectedEntretiens.length} sélectionnés`;
+    return selectedEntretiens.join(', ');
+  };
 
   return (
     <div className="space-y-6">
       <Card>
         <CardHeader>
-          <CardTitle>Configuration</CardTitle>
+          <CardTitle>Configuration des Alertes</CardTitle>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <div className="flex gap-4 items-center">
-            <label className="min-w-fit">Fenêtre d'alerte : <span className='font-bold text-primary'>{alertWindowDays} jours</span></label>
-            <Slider
-              value={[alertWindowDays]}
-              onValueChange={(value) => setAlertWindowDays(value[0])}
-              min={7}
-              max={180}
-              step={1}
-              disabled={isPending}
-            />
-          </div>
-          <Button onClick={handleGenerateAlerts} disabled={isPending}>
-            {isPending && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}
-            Générer les Alertes
-          </Button>
+        <CardContent className="flex flex-wrap items-end gap-4">
+            <div className="grid gap-2">
+                <label className="text-sm font-medium">Date de début</label>
+                <Popover>
+                    <PopoverTrigger asChild>
+                    <Button variant={"outline"} className={cn("w-[240px] justify-start text-left font-normal", !dateRange.from && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dateRange.from ? dayjs(dateRange.from).format("DD/MM/YYYY") : <span>Choisir une date</span>}
+                    </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={dateRange.from} onSelect={(d) => setDateRange(prev => ({...prev, from: d}))} initialFocus />
+                    </PopoverContent>
+                </Popover>
+            </div>
+             <div className="grid gap-2">
+                <label className="text-sm font-medium">Date de fin</label>
+                <Popover>
+                    <PopoverTrigger asChild>
+                    <Button variant={"outline"} className={cn("w-[240px] justify-start text-left font-normal", !dateRange.to && "text-muted-foreground")}>
+                        <CalendarIcon className="mr-2 h-4 w-4" />
+                        {dateRange.to ? dayjs(dateRange.to).format("DD/MM/YYYY") : <span>Choisir une date</span>}
+                    </Button>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-0" align="start">
+                    <Calendar mode="single" selected={dateRange.to} onSelect={(d) => setDateRange(prev => ({...prev, to: d}))} initialFocus />
+                    </PopoverContent>
+                </Popover>
+            </div>
+            <div className="grid gap-2">
+              <label className="text-sm font-medium">Type d'entretien</label>
+              <DropdownMenu>
+                  <DropdownMenuTrigger asChild>
+                      <Button variant="outline" className="w-[280px] justify-between">
+                          <span className="truncate">{getEntretiensButtonLabel()}</span>
+                          <ChevronDown className="h-4 w-4 opacity-50" />
+                      </Button>
+                  </DropdownMenuTrigger>
+                  <DropdownMenuContent className="w-[280px] max-h-80 overflow-y-auto">
+                      <DropdownMenuCheckboxItem
+                          checked={selectedEntretiens.length === 0}
+                          onCheckedChange={(checked) => {
+                              if (checked) setSelectedEntretiens([]);
+                          }}
+                      >
+                          Tous les entretiens
+                      </DropdownMenuCheckboxItem>
+                      <DropdownMenuSeparator />
+                      {OFFICIAL_ENTRETIENS.map((item) => (
+                          <DropdownMenuCheckboxItem
+                              key={item}
+                              checked={selectedEntretiens.includes(item)}
+                              onCheckedChange={(checked) => {
+                                  setSelectedEntretiens((prev) =>
+                                      checked
+                                          ? [...prev, item]
+                                          : prev.filter((i) => i !== item)
+                                  );
+                              }}
+                          >
+                              {item}
+                          </DropdownMenuCheckboxItem>
+                      ))}
+                  </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+             <div className="grid gap-2">
+                <label className="text-sm font-medium">Niveau</label>
+                <Select value={niveau} onValueChange={setNiveau}>
+                    <SelectTrigger className="w-[180px]">
+                        <SelectValue placeholder="Filtrer par niveau..." />
+                    </SelectTrigger>
+                    <SelectContent>
+                        <SelectItem value="all">Tous les niveaux</SelectItem>
+                        <SelectItem value="C">C - Contrôle</SelectItem>
+                        <SelectItem value="N">N - Nettoyage</SelectItem>
+                        <SelectItem value="CH">CH - Changement</SelectItem>
+                    </SelectContent>
+                </Select>
+            </div>
+            <div className="grid gap-2">
+                <label className="text-sm font-medium">Matricule</label>
+                <Input
+                    placeholder="Filtrer par matricule..."
+                    value={matricule}
+                    onChange={(e) => setMatricule(e.target.value)}
+                    className="w-[200px]"
+                />
+            </div>
+            <Button onClick={handleGenerateAlerts} disabled={isPending}>
+                {isPending ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <Search className="mr-2 h-4 w-4" />}
+                Générer les Alertes
+            </Button>
         </CardContent>
       </Card>
 
@@ -178,7 +293,7 @@ export function AlertsView() {
                 <div className="flex flex-col items-center justify-center h-48 text-center bg-muted/50 rounded-lg">
                     <CheckCircle className="h-12 w-12 text-green-500 mb-4" />
                     <p className="text-lg font-medium">Tout est en ordre !</p>
-                    <p className="text-muted-foreground">Aucune alerte de maintenance préventive générée pour la période sélectionnée.</p>
+                    <p className="text-muted-foreground">Aucune alerte de maintenance préventive générée pour les critères sélectionnés.</p>
                 </div>
             )}
           </CardContent>

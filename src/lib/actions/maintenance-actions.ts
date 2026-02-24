@@ -1,26 +1,18 @@
-
-
-
-
-
-
-
 'use server';
 
 import { 
   initializeDatabase as initDb, 
   generateHistoryMatrix, 
   generatePlanning as runPlanning,
-  getPlanningPage,
-  getFollowUpPage,
+  getPlanningPage as dataGetPlanningPage,
+  getFollowUpPage as dataGetFollowUpPage,
   getPlanningMatrixForExport,
   getFollowUpMatrixForExport,
   getHistoryMatrixFromCache,
   getParams as dataGetParams,
   updateParam as dataUpdateParam,
   getAllPlanningForYear,
-  getFollowUpStatistics,
-  getAllEquipment, 
+  getFollowUpStatistics as dataGetFollowUpStatistics,
   getAllOperations,
   getDistinctCategories as dataGetDistinctCategories,
   getCategoryEntretiens as dataGetCategoryEntretiens,
@@ -38,34 +30,125 @@ import {
   getDeclarationsList as getDeclarationsListData,
   deleteDeclarationFromDb as deleteDeclaration,
   updateDeclarationInDb as updateDeclaration,
+  getEquipmentById as dataGetEquipmentById,
+  addEquipmentToDb,
+  updateEquipmentInDb,
+  deleteEquipmentFromDb,
+  getCurativeFiches as getCurativeFichesFromDb,
+  getOrdresDeTravail as getOrdresDeTravailFromDb,
+  getPreventiveFichesFromDb,
+  addConsolideEntries,
+  getConsolideByDateRange,
+  addStockEntryToDb,
+  getStockEntriesFromDb,
+  deleteStockEntryFromDb,
+  getDailyConsumptionReportData,
+  getMonthlyStockReportData,
+  getEquipmentDetails,
+  deleteOperationFromDb,
+  updateOperationInDb,
+  getEquipmentForConsumption as getEquipmentForConsumptionData,
+  getConsumptionById,
+  updateConsumption,
+  deleteConsumption,
+  saveBonDeSortie as saveBonToDb,
+  getBonsDeSortieList as getBonsListFromDb,
+  getBonDeSortieById as getBonFromDb,
+  updateBonDeSortie as updateBonInDb,
+  deleteBonDeSortie as deleteBonFromDb,
+  reinitializeTableFromCsv as reinitializeTable,
+  getLastStockEntryDate as getLastEntryDateFromDb,
+  getEquipmentCount,
+  getOperationCountForYear,
+  getRecentOperations,
 } from '../data';
-import type { Alert, DeclarationPanne } from '../types';
+import type { Alert, BonDeSortie, CurativeFicheData, DeclarationPanne, OrdreTravailData, PreventiveFicheData, StockEntry, WeeklyReport, MonthlyStockReportData } from '../types';
 import { revalidatePath } from 'next/cache';
 import dayjs from 'dayjs';
 import isSameOrBefore from 'dayjs/plugin/isSameOrBefore';
+import isBetween from 'dayjs/plugin/isBetween';
 import { z } from 'zod';
 import { redirect } from 'next/navigation';
+import { LUBRICANT_TYPES } from '../constants';
 
 
 dayjs.extend(isSameOrBefore);
+dayjs.extend(isBetween);
 
 
-export async function getPreventativeAlerts(alertWindowDays: number): Promise<Alert[]> {
+export async function getPreventativeAlerts({ startDate, endDate, entretiens, niveau, matricule }: { startDate: Date; endDate: Date; entretiens?: string[]; niveau?: string; matricule?: string; }): Promise<Alert[]> {
   try {
-    const currentYear = new Date().getFullYear();
-    const plannedOperations = await getAllPlanningForYear(currentYear);
+    const startYear = startDate.getFullYear();
+    const endYear = endDate.getFullYear();
+    
+    // Fetch for all relevant years
+    const years = Array.from(new Set([startYear, endYear]));
+    let plannedOperations: any[] = [];
+    for (const year of years) {
+        const yearOps = await getAllPlanningForYear(year);
+        plannedOperations.push(...yearOps);
+    }
     
     const today = dayjs().startOf('day');
+    const startDayjs = dayjs(startDate).startOf('day');
+    const endDayjs = dayjs(endDate).endOf('day');
+
+    const curativeOps = await getAllOperations();
+    const breakdownIntervals = new Map<string, { start: dayjs.Dayjs, end: dayjs.Dayjs }[]>();
+
+    for (const op of curativeOps) {
+        if (!op.matricule || !op.date_entree) continue;
+        const start = dayjs(op.date_entree, 'DD/MM/YYYY');
+        let end: dayjs.Dayjs;
+        if (op.date_sortie && op.date_sortie.toLowerCase().includes('cour')) {
+            end = dayjs();
+        } else {
+            end = dayjs(op.date_sortie, 'DD/MM/YYYY');
+        }
+
+        if (start.isValid() && end.isValid() && start.isSameOrBefore(end)) {
+            if (!breakdownIntervals.has(op.matricule)) {
+                breakdownIntervals.set(op.matricule, []);
+            }
+            breakdownIntervals.get(op.matricule)!.push({ start, end });
+        }
+    }
+    
     const alerts: Alert[] = [];
-    const endOfWindow = today.add(alertWindowDays, 'day');
 
     for (const op of plannedOperations) {
+        // Filtre par type d'entretien si spécifié
+        if (entretiens && entretiens.length > 0 && !entretiens.includes(op.operation)) {
+            continue;
+        }
+
         const dueDate = dayjs(op.date_programmee, 'DD/MM/YYYY');
-        if (!dueDate.isValid() || dueDate.isAfter(endOfWindow)) {
+        
+        // Ignorer les dates hors de la fenêtre sélectionnée
+        if (!dueDate.isValid() || !dueDate.isBetween(startDayjs, endDayjs, null, '[]')) {
+            continue;
+        }
+        
+        // Nouveaux filtres
+        if (niveau && niveau !== 'all' && op.niveau !== niveau) {
+            continue;
+        }
+        if (matricule && op.matricule && !op.matricule.toLowerCase().includes(matricule.toLowerCase())) {
             continue;
         }
 
         const urgency = dueDate.isBefore(today) ? 'urgent' : 'near';
+
+        let status: string | undefined;
+        const intervals = breakdownIntervals.get(op.matricule);
+        if (intervals) {
+            for (const interval of intervals) {
+                if (dueDate.isBetween(interval.start, interval.end, 'day', '[]')) {
+                    status = 'En Panne';
+                    break;
+                }
+            }
+        }
 
         alerts.push({
             equipmentId: op.matricule,
@@ -74,6 +157,7 @@ export async function getPreventativeAlerts(alertWindowDays: number): Promise<Al
             dueDate: op.date_programmee,
             urgency: urgency,
             niveau: op.niveau,
+            status: status,
         });
     }
     
@@ -147,38 +231,46 @@ export async function updateParam(id: number, column: string, value: string | nu
     return result;
 }
 
-export async function getDashboardData(year?: number) {
+export async function getDashboardData(year?: number, month?: number) {
     const targetYear = year || new Date().getFullYear();
     const isCurrentYear = targetYear === new Date().getFullYear();
     try {
         const [
             equipmentCount,
-            operations,
+            recentOperations,
+            operationCountForYear,
             followUpStats,
             monthlyCounts,
             preventativeStats
         ] = await Promise.all([
-            getAllEquipment().then(e => e.length),
-            getAllOperations(),
-            getFollowUpStatistics(targetYear),
+            getEquipmentCount(),
+            getRecentOperations(5),
+            getOperationCountForYear(targetYear),
+            dataGetFollowUpStatistics(targetYear),
             getMonthlyCurativeCounts(targetYear),
-            getMonthlyPreventativeStats(targetYear)
+            getMonthlyPreventativeStats(targetYear, month)
         ]);
-        
-        const breakdownsThisMonth = isCurrentYear 
-            ? (monthlyCounts.find(m => m.month === dayjs().format('MMM'))?.count || 0)
-            : null;
+
+        let breakdownsThisMonth: number | null = null;
+        if (month) {
+            const monthName = dayjs().month(month - 1).format('MMM');
+            breakdownsThisMonth = monthlyCounts.find(m => m.month === monthName)?.count ?? 0;
+        } else if (isCurrentYear) {
+            const currentMonthName = dayjs().format('MMM');
+            breakdownsThisMonth = monthlyCounts.find(m => m.month === currentMonthName)?.count ?? 0;
+        }
 
         return {
             equipmentCount: equipmentCount || 0,
-            operationCount: operations.length || 0,
+            operationCount: operationCountForYear,
             followUpStats: followUpStats,
             monthlyCounts: monthlyCounts,
             preventativeStats: preventativeStats,
-            recentOperations: operations.slice(0, 5),
+            recentOperations: recentOperations,
             error: null,
             breakdownsThisMonth,
             year: targetYear,
+            month: month,
         };
     } catch (error: any) {
         console.error("Error fetching dashboard data:", error);
@@ -192,6 +284,7 @@ export async function getDashboardData(year?: number) {
             error: "Impossible de charger les données du tableau de bord.",
             breakdownsThisMonth: null,
             year: targetYear,
+            month: month,
         };
     }
 }
@@ -213,14 +306,24 @@ export async function updateCategoryEntretiens(category: string, entretien: stri
 
 
 const curativeOperationSchema = z.object({
-  matricule: z.string().min(1),
-  dateEntree: z.date(),
-  panneDeclaree: z.string().min(1),
-  sitActuelle: z.enum(['En Cours', 'Réparée', 'Dépanné']),
+  matricule: z.string().min(1, { message: 'Le matricule est obligatoire.' }),
+  dateEntree: z.string().min(1, { message: "La date d'entrée est obligatoire." }),
+  panneDeclaree: z.string().min(1, { message: 'La déclaration de panne est obligatoire.' }),
+  sitActuelle: z.enum(['En Cours', 'Réparée', 'Dépanné'], {
+    required_error: 'Le statut actuel est obligatoire.',
+  }),
   pieces: z.string().optional(),
-  dateSortie: z.date().optional(),
+  dateSortie: z.string().optional(),
   intervenant: z.string().optional(),
   affectation: z.string().optional(),
+}).refine(data => {
+    if (data.sitActuelle === 'Réparée' && (!data.dateSortie || data.dateSortie.trim() === '')) {
+        return false;
+    }
+    return true;
+}, {
+    message: 'La date de sortie est obligatoire si le statut est "Réparée".',
+    path: ['dateSortie'],
 });
 
 // Helper function for working days
@@ -260,24 +363,27 @@ export async function addCurativeOperation(values: unknown) {
   const data = parsed.data;
 
   try {
-    const dateEntree = dayjs(data.dateEntree);
-    let dateSortie;
+    const dateEntree = data.dateEntree;
     let dateSortieString: string;
 
     if (data.sitActuelle === 'Réparée' && data.dateSortie) {
-        dateSortie = dayjs(data.dateSortie);
-        dateSortieString = dateSortie.format('DD/MM/YYYY');
+        dateSortieString = data.dateSortie;
     } else {
-        dateSortie = dayjs(); // for calculation if 'En Cours'
         dateSortieString = 'En Cours';
     }
     
+    const dateEntreeDayjs = dayjs(dateEntree, 'DD/MM/YYYY');
+    const dateSortieDayjs = (data.sitActuelle === 'Réparée' && data.dateSortie) 
+      ? dayjs(data.dateSortie, 'DD/MM/YYYY') 
+      : dayjs();
+    
     // NBR INDISPONIBILITE
-    const nbrIndisponibilite = dateSortie.diff(dateEntree, 'day');
+    const diff = dateSortieDayjs.diff(dateEntreeDayjs, 'day');
+    const nbrIndisponibilite = diff >= 0 ? diff + 1 : 1;
 
     // JOUR OUVRABLE and RATIOs
-    const monthStartDate = dateEntree.startOf('month');
-    const monthEndDate = dateEntree.endOf('month');
+    const monthStartDate = dateEntreeDayjs.startOf('month');
+    const monthEndDate = dateEntreeDayjs.endOf('month');
     const totalWorkingDaysInMonth = calculateWorkingDays(monthStartDate, monthEndDate);
     const jourOuvrable = totalWorkingDaysInMonth > 0 ? totalWorkingDaysInMonth : 22; // fallback
 
@@ -290,7 +396,7 @@ export async function addCurativeOperation(values: unknown) {
 
     const operationData = {
         matricule: data.matricule,
-        date_entree: dateEntree.format('DD/MM/YYYY'),
+        date_entree: dateEntree,
         panne_declaree: data.panneDeclaree,
         sitactuelle: data.sitActuelle,
         pieces: data.pieces || null,
@@ -405,5 +511,562 @@ export async function updateDeclarationAction(declarationId: number, data: any) 
     }
 }
 
+const equipmentSchema = z.object({
+  matricule: z.string().min(1, "Le matricule est obligatoire."),
+  designation: z.string().min(1, "La désignation est obligatoire."),
+  marque: z.string().optional().transform(v => v === '' ? null : v),
+  categorie: z.string().optional().transform(v => v === '' ? null : v),
+  annee: z.string().optional().transform(v => v === '' ? null : v),
+  qte_vidange: z.coerce.number().min(0).optional().transform(v => v || null),
+  code_barre: z.string().optional().transform(v => v === '' ? null : v),
+  pneumatique: z.string().optional().transform(v => v === '' ? null : v),
+});
 
-export { getPlanningPage, getFollowUpPage, getFollowUpStatistics };
+export async function getEquipmentByIdAction(id: number) {
+    return dataGetEquipmentById(id);
+}
+
+export async function addEquipmentAction(values: unknown) {
+  const parsed = equipmentSchema.safeParse(values);
+  if (!parsed.success) {
+    return { success: false, message: 'Données du formulaire invalides.' };
+  }
+  
+  try {
+    const result = await addEquipmentToDb(parsed.data);
+    revalidatePath('/equipment');
+    revalidatePath('/'); // For stats on dashboard
+    return { success: true, equipmentId: result.id };
+  } catch (error: any) {
+    console.error('Failed to add equipment:', error);
+    return { success: false, message: error.message || 'Une erreur serveur est survenue.' };
+  }
+}
+
+export async function updateEquipmentAction(id: number, values: unknown) {
+  const parsed = equipmentSchema.safeParse(values);
+  if (!parsed.success) {
+    return { success: false, message: 'Données du formulaire invalides.' };
+  }
+
+  try {
+    const { matriculeChanged } = await updateEquipmentInDb(id, parsed.data);
+    
+    // Revalidate all relevant paths
+    revalidatePath('/equipment');
+    revalidatePath(`/equipment/${parsed.data.matricule}`);
+    revalidatePath('/');
+    revalidatePath('/history');
+    revalidatePath('/planning');
+    revalidatePath('/suivi');
+    revalidatePath('/alerts');
+    
+    const message = matriculeChanged
+      ? "L'équipement a été mis à jour. Le matricule a changé, l'historique a été migré. Veuillez regénérer l'historique et le planning."
+      : "L'équipement a été mis à jour avec succès.";
+
+    return { success: true, message, matricule: parsed.data.matricule, matriculeChanged };
+  } catch (error: any) {
+    console.error('Failed to update equipment:', error);
+    return { success: false, message: error.message || 'Une erreur serveur est survenue.' };
+  }
+}
+
+export async function deleteEquipmentAction(id: number) {
+  try {
+    await deleteEquipmentFromDb(id);
+    revalidatePath('/equipment');
+    revalidatePath('/');
+    return { success: true };
+  } catch (error: any) {
+    console.error(`Failed to delete equipment action for id ${id}`, error);
+    return { success: false, message: 'Impossible de supprimer l\'équipement.' };
+  }
+}
+
+const getDocsSchema = z.object({
+  startDate: z.string(),
+  endDate: z.string(),
+  matricule: z.string().optional(),
+});
+
+export async function getCurativeFichesAction(values: unknown): Promise<{ success: boolean; data?: CurativeFicheData[]; message?: string; }> {
+  const parsed = getDocsSchema.safeParse(values);
+  if (!parsed.success) {
+    return { success: false, message: 'Données du formulaire invalides.' };
+  }
+
+  try {
+    const data = await getCurativeFichesFromDb(parsed.data.startDate, parsed.data.endDate, parsed.data.matricule);
+    return { success: true, data };
+  } catch (error: any) {
+    console.error("Failed to get curative fiches:", error);
+    return { success: false, message: error.message || 'Une erreur serveur est survenue.' };
+  }
+}
+
+export async function getOrdresDeTravailAction(values: unknown): Promise<{ success: boolean; data?: OrdreTravailData[]; message?: string; }> {
+  const parsed = getDocsSchema.safeParse(values);
+  if (!parsed.success) {
+    return { success: false, message: 'Données du formulaire invalides.' };
+  }
+
+  try {
+    const data = await getOrdresDeTravailFromDb(parsed.data.startDate, parsed.data.endDate, parsed.data.matricule);
+    return { success: true, data };
+  } catch (error: any) {
+    console.error("Failed to get ordres de travail:", error);
+    return { success: false, message: error.message || 'Une erreur serveur est survenue.' };
+  }
+}
+
+export async function getPreventiveFichesAction(values: unknown): Promise<{ success: boolean; data?: PreventiveFicheData[]; message?: string; }> {
+  const parsed = getDocsSchema.safeParse(values);
+  if (!parsed.success) {
+    return { success: false, message: 'Données du formulaire invalides.' };
+  }
+
+  try {
+    const data = await getPreventiveFichesFromDb(parsed.data.startDate, parsed.data.endDate, parsed.data.matricule);
+    return { success: true, data };
+  } catch (error: any) {
+    console.error("Failed to get preventive fiches:", error);
+    return { success: false, message: error.message || 'Une erreur serveur est survenue.' };
+  }
+}
+
+const consumptionEntrySchema = z.object({
+    matricule: z.string(),
+    designation: z.string().optional(),
+    qte_vidange: z.coerce.number().nullable().optional(),
+    obs: z.string().optional(),
+    entretien: z.string().optional(),
+    lubricants: z.record(z.number()),
+});
+
+const consumptionsSchema = z.object({
+    date: z.coerce.date(),
+    entries: z.array(consumptionEntrySchema),
+});
+
+export async function addConsumptionsAction(values: unknown) {
+  const parsed = consumptionsSchema.safeParse(values);
+  if (!parsed.success) {
+    console.error('Zod parsing error:', parsed.error.flatten());
+    return { success: false, message: 'Données du formulaire invalides.' };
+  }
+
+  const { date, entries } = parsed.data;
+
+  if (entries.length === 0) {
+      return { success: false, message: 'Aucune consommation à enregistrer.'};
+  }
+
+  try {
+    const dateString = dayjs(date).format('DD/MM/YYYY');
+    const result = await addConsolideEntries(dateString, entries);
+    
+    revalidatePath('/stock');
+    revalidatePath('/consommations');
+    revalidatePath('/history');
+    revalidatePath('/'); // For dashboard stats
+
+    return { success: true, message: `${result.count} consommation(s) enregistrée(s).` };
+
+  } catch (error: any) {
+    console.error('Failed to add consumptions:', error);
+    return { success: false, message: error.message || 'Une erreur serveur est survenue.' };
+  }
+}
+    
+export async function getConsumptionsByDateRange(startDate: Date, endDate: Date) {
+  try {
+    const { consumptions, summary, initialStockSummary } = await getConsolideByDateRange(startDate, endDate);
+    return { success: true, consumptions, summary, initialStockSummary };
+  } catch (error: any) {
+    console.error("Failed to get consumptions by date range:", error);
+    return { success: false, message: error.message };
+  }
+}
+
+const stockEntrySchema = z.object({
+    date: z.date(),
+    lubricant_type: z.string().min(1),
+    quantity: z.coerce.number().gt(0),
+    reference: z.string().optional(),
+});
+
+export async function addStockEntryAction(values: unknown) {
+    const parsed = stockEntrySchema.safeParse(values);
+    if (!parsed.success) {
+        return { success: false, message: 'Données du formulaire invalides.' };
+    }
+
+    try {
+        const result = await addStockEntryToDb({
+            ...parsed.data,
+            date: dayjs(parsed.data.date).format('YYYY-MM-DD')
+        });
+        revalidatePath('/stock-entries');
+        revalidatePath('/consommations');
+        return { success: true, ...result };
+    } catch (e: any) {
+        return { success: false, message: e.message };
+    }
+}
+
+export async function getStockEntriesAction() {
+    return getStockEntriesFromDb();
+}
+
+export async function deleteStockEntryAction(id: number) {
+    try {
+        await deleteStockEntryFromDb(id);
+        revalidatePath('/stock-entries');
+        revalidatePath('/consommations');
+        return { success: true };
+    } catch (e: any) {
+        return { success: false, message: e.message };
+    }
+}
+
+export async function getDailyConsumptionReportAction({ year, month, lubricantType }: { year: number, month: number, lubricantType: string }) {
+    try {
+        const data = await getDailyConsumptionReportData({ year, month, lubricantType });
+        return { success: true, data };
+    } catch (error: any) {
+        console.error("Failed to get daily consumption report:", error);
+        return { success: false, message: error.message };
+    }
+}
+
+export async function getMonthlyStockReportAction(params: {
+  startYear: number;
+  startMonth: number;
+  endYear: number;
+  endMonth: number;
+  lubricantType: string;
+}): Promise<{ success: boolean; data?: MonthlyStockReportData; message?: string; }> {
+    try {
+        const data = await getMonthlyStockReportData(params);
+        return { success: true, data };
+    } catch (error: any) {
+        console.error("Failed to get monthly stock report:", error);
+        return { success: false, message: error.message };
+    }
+}
+
+export async function deleteOperationAction(id: number) {
+    try {
+        await deleteOperationFromDb(id);
+        revalidatePath('/operations');
+        revalidatePath('/history');
+        revalidatePath('/');
+        return { success: true };
+    } catch (error: any) {
+        console.error(`Failed to delete operation action for id ${id}`, error);
+        return { success: false, message: 'Impossible de supprimer l\'opération.' };
+    }
+}
+
+export async function getOperationByIdAction(id: number) {
+    return getOperationById(id);
+}
+
+export async function updateOperationAction(id: number, values: unknown) {
+  const parsed = curativeOperationSchema.safeParse(values);
+  if (!parsed.success) {
+    return { success: false, message: 'Données du formulaire invalides.' };
+  }
+  const data = parsed.data;
+
+  try {
+    const dateEntree = data.dateEntree;
+    let dateSortieString: string;
+
+    if (data.sitActuelle === 'Réparée' && data.dateSortie) {
+        dateSortieString = data.dateSortie;
+    } else {
+        dateSortieString = 'En Cours';
+    }
+    
+    const dateEntreeDayjs = dayjs(dateEntree, 'DD/MM/YYYY');
+    const dateSortieDayjs = (data.sitActuelle === 'Réparée' && data.dateSortie) 
+        ? dayjs(data.dateSortie, 'DD/MM/YYYY')
+        : dayjs();
+
+    const diff = dateSortieDayjs.diff(dateEntreeDayjs, 'day');
+    const nbrIndisponibilite = diff >= 0 ? diff + 1 : 1;
+
+    const monthStartDate = dateEntreeDayjs.startOf('month');
+    const monthEndDate = dateEntreeDayjs.endOf('month');
+    const totalWorkingDaysInMonth = calculateWorkingDays(monthStartDate, monthEndDate);
+    const jourOuvrable = totalWorkingDaysInMonth > 0 ? totalWorkingDaysInMonth : 22;
+    const ratio = nbrIndisponibilite / jourOuvrable;
+    const jourDisponibilite = jourOuvrable - nbrIndisponibilite;
+    const ratio2 = jourDisponibilite / jourOuvrable;
+    const typeDePanne = determinePanneType(data.panneDeclaree, data.pieces || '');
+    
+    const equipment = await getEquipmentDetails(data.matricule);
+    if (!equipment) {
+        return { success: false, message: `Équipement avec matricule ${data.matricule} non trouvé.` };
+    }
+
+    const operationData = {
+        matricule: data.matricule,
+        date_entree: dateEntree,
+        panne_declaree: data.panneDeclaree,
+        sitactuelle: data.sitActuelle,
+        pieces: data.pieces || null,
+        date_sortie: dateSortieString,
+        intervenant: data.intervenant || null,
+        affectation: data.affectation || null,
+        type_de_panne: typeDePanne,
+        nbr_indisponibilite: nbrIndisponibilite,
+        jour_ouvrable: jourOuvrable,
+        ratio: isFinite(ratio) ? ratio : 0,
+        jour_disponibilite: jourDisponibilite,
+        ratio2: isFinite(ratio2) ? ratio2 : 0,
+        categorie: equipment.categorie,
+        designation: equipment.designation
+    };
+
+    const result = await updateOperationInDb(id, operationData);
+
+    revalidatePath('/operations');
+    revalidatePath(`/equipment/${data.matricule}`);
+    revalidatePath('/history');
+    revalidatePath('/');
+    
+    return { success: true, message: 'Opération mise à jour.', data: result };
+
+  } catch (error: any) {
+    console.error('Failed to update curative operation:', error);
+    return { success: false, message: error.message || 'Une erreur serveur est survenue.' };
+  }
+}
+
+export async function getEquipmentForConsumptionAction() {
+    return getEquipmentForConsumptionData();
+}
+
+export async function getConsumptionByIdAction(id: number) {
+    return getConsumptionById(id);
+}
+
+export async function deleteConsumptionAction(id: number) {
+    try {
+        await deleteConsumption(id);
+        revalidatePath('/consommations');
+        revalidatePath('/history');
+        revalidatePath('/');
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, message: error.message || 'Impossible de supprimer la consommation.' };
+    }
+}
+
+const editConsumptionSchema = z.object({
+    date: z.coerce.date(),
+    matricule: z.string().min(1),
+    obs: z.string().optional(),
+    lubricants: z.array(z.object({
+        type: z.string(),
+        quantity: z.coerce.number().min(0)
+    })),
+    qte_vidange: z.coerce.number().nullable().optional(),
+});
+
+
+const calculateEntretienServer = (lubricants: Record<string, number | null>, qteVidange: number | null | undefined): string => {
+    const getQty = (type: string): number => lubricants[type] || 0;
+
+    const engineOils = ['15w40', '15w40_v', '15w40_quartz', '15w40_4400'];
+    const hydraulicOils = ['10w', 't32', 'hvol', 't46'];
+    const transmissionOils = ['90', 'tvol', 't30'];
+    const grease = ['graisse'];
+
+    const totalEngineOil = engineOils.reduce((sum, type) => sum + getQty(type), 0);
+    const totalHydraulicOil = hydraulicOils.reduce((sum, type) => sum + getQty(type), 0);
+    const totalTransmissionOil = transmissionOils.reduce((sum, type) => sum + getQty(type), 0);
+    const totalGrease = grease.reduce((sum, type) => sum + getQty(type), 0);
+
+    const hasAnyConsumption = totalEngineOil > 0 || totalHydraulicOil > 0 || totalTransmissionOil > 0 || totalGrease > 0;
+
+    if (!hasAnyConsumption) return "";
+
+    if (qteVidange && qteVidange > 0 && totalEngineOil >= qteVidange) return "VIDANGE,M";
+    if (totalGrease > 0) return "GR";
+    if (totalHydraulicOil > 0) return "HYDRAULIQUE";
+    if (totalTransmissionOil > 0) return "TRANSMISSION";
+    if (totalEngineOil > 0) return "NIVEAU HUILE";
+
+    return "";
+};
+
+export async function updateConsumptionAction(id: number, values: unknown) {
+  const parsed = editConsumptionSchema.safeParse(values);
+  if (!parsed.success) {
+    console.error('Zod parsing error:', parsed.error.flatten());
+    return { success: false, message: 'Données du formulaire invalides.' };
+  }
+
+  const { date, lubricants, qte_vidange, ...rest } = parsed.data;
+
+  const lubricantsObj = LUBRICANT_TYPES.reduce((acc, type) => {
+    const consumed = lubricants.find(l => l.type === type);
+    acc[type] = consumed && consumed.quantity > 0 ? consumed.quantity : null;
+    return acc;
+  }, {} as Record<string, number | null>);
+
+  const entretien = calculateEntretienServer(lubricantsObj, qte_vidange);
+
+  const payload = {
+    date: dayjs(date).format('DD/MM/YYYY'),
+    ...rest,
+    v: qte_vidange,
+    entretien,
+    ...lubricantsObj
+  };
+  
+  try {
+    await updateConsumption(id, payload);
+    revalidatePath('/consommations');
+    revalidatePath('/history');
+    revalidatePath('/');
+    return { success: true, message: 'Consommation mise à jour.' };
+  } catch (error: any) {
+    return { success: false, message: error.message };
+  }
+}
+
+export async function saveBonDeSortieAction(data: any) {
+  try {
+    const { id } = await saveBonToDb(data);
+
+    const { date, items, destinataire_chantier } = data;
+    
+    const normalize = (str: string) => str.toLowerCase().replace(/[^a-z0-9]/g, '');
+
+    const lubricantItems = items.map((item: any) => {
+        const normalizedDesignation = normalize(item.designation);
+        const matchedLube = LUBRICANT_TYPES.find(lube => normalizedDesignation.includes(normalize(lube.replace(/_/g, ''))));
+        return matchedLube ? { ...item, lubricant_type: matchedLube } : null;
+    }).filter(Boolean);
+
+    if (lubricantItems.length > 0) {
+        const lubricantsPayload = lubricantItems.reduce((acc: Record<string, number>, item: any) => {
+            if (item) {
+                acc[item.lubricant_type] = (acc[item.lubricant_type] || 0) + item.quantite;
+            }
+            return acc;
+        }, {} as Record<string, number>);
+
+        const consumptionPayload = {
+            date: date,
+            entries: [{
+                matricule: `Chantier: ${destinataire_chantier}`,
+                designation: `Bon de Sortie #${id}`,
+                obs: `Sortie de stock via Bon de Sortie #${id}`,
+                qte_vidange: null,
+                lubricants: lubricantsPayload
+            }]
+        };
+        await addConsumptionsAction(consumptionPayload);
+    }
+    
+    revalidatePath('/bons-de-sortie');
+    return { success: true, bonId: id };
+  } catch (error: any) {
+    return { success: false, message: error.message };
+  }
+}
+
+export async function getBonsDeSortieListAction() {
+    try {
+        return await getBonsListFromDb();
+    } catch (e: any) {
+        return [];
+    }
+}
+
+export async function getBonDeSortieAction(id: number): Promise<BonDeSortie | null> {
+    try {
+        return await getBonFromDb(id);
+    } catch (e: any) {
+        return null;
+    }
+}
+
+export async function updateBonDeSortieAction(id: number, data: any) {
+    try {
+        await updateBonInDb(id, data);
+        revalidatePath('/bons-de-sortie');
+        revalidatePath(`/bons-de-sortie/view/${id}`);
+        revalidatePath(`/bons-de-sortie/edit/${id}`);
+        // Note: This does not update the stock consumption.
+        // A more robust solution would require linking consumption entries to bons.
+        return { success: true, bonId: id };
+    } catch (error: any) {
+        return { success: false, message: error.message };
+    }
+}
+
+export async function deleteBonDeSortieAction(id: number) {
+    try {
+        await deleteBonFromDb(id);
+        revalidatePath('/bons-de-sortie');
+         // Note: This does not delete the associated stock consumption.
+        return { success: true };
+    } catch (error: any) {
+        return { success: false, message: error.message };
+    }
+}
+
+export async function handleFileUploadAction(tableName: string, fileContent: string) {
+  try {
+    const result = await reinitializeTable(tableName, fileContent);
+    
+    // Revalidate paths that might be affected by data changes
+    revalidatePath('/init-db');
+    revalidatePath('/', 'layout'); // Revalidate all pages
+
+    return { success: true, message: result.message };
+  } catch (error: any) {
+    console.error(`Failed to handle file upload for table ${tableName}:`, error);
+    return { success: false, message: error.message || 'Une erreur serveur est survenue.' };
+  }
+}
+
+
+export async function getLastEntryDateAction(lubricantType: string): Promise<{ success: boolean; date: string | null; message?: string; }> {
+    try {
+        const date = await getLastEntryDateFromDb(lubricantType);
+        return { success: true, date };
+    } catch (error: any) {
+        return { success: false, date: null, message: error.message };
+    }
+}
+    
+
+export async function getPlanningPage(
+    year: number,
+    page = 1,
+    pageSize = 1,
+    filter = ''
+) {
+    return dataGetPlanningPage(year, page, pageSize, filter);
+}
+
+export async function getFollowUpPage(
+    year: number,
+    page = 1,
+    pageSize = 1,
+    filter = ''
+) {
+    return dataGetFollowUpPage(year, page, pageSize, filter);
+}
+
+export async function getFollowUpStatistics(year: number) {
+    return dataGetFollowUpStatistics(year);
+}

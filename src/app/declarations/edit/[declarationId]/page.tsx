@@ -3,9 +3,9 @@ import { notFound } from "next/navigation";
 import { EditDeclarationForm } from "./edit-form";
 import type { DeclarationPanne } from "@/lib/types";
 
-export default async function EditDeclarationPage({ params }: { params: Promise<{ declarationId: string }> }) {
-    const { declarationId: id } = await params;
-    const declarationId = parseInt(id, 10);
+export default async function EditDeclarationPage({ params }: { params: { declarationId: string } }) {
+    const resolvedParams = await params;
+    const declarationId = parseInt(resolvedParams.declarationId, 10);
     if (isNaN(declarationId)) {
         notFound();
     }

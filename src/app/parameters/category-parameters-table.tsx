@@ -1,5 +1,5 @@
 'use client';
-import { useState } from 'react';
+import { useState, useTransition } from 'react';
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -11,6 +11,7 @@ import {
 import { Button } from '@/components/ui/button';
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from '@/components/ui/table';
 import { useToast } from '@/hooks/use-toast';
+import { updateCategoryEntretiens } from '@/lib/actions/maintenance-actions';
 import { OFFICIAL_ENTRETIENS } from '@/lib/constants';
 import { ChevronDown, Loader2 } from 'lucide-react';
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
@@ -22,54 +23,37 @@ type Props = {
 
 export function CategoryParametersTable({ categories, initialData }: Props) {
     const [data, setData] = useState(initialData);
-    const [isUpdating, setIsUpdating] = useState(false);
+    const [isPending, startTransition] = useTransition();
     const { toast } = useToast();
 
-    const handleUpdate = async (category: string, entretien: string, isActive: boolean) => {
-        setIsUpdating(true);
-        try {
-            // Optimistic update
-            setData(prevData => ({
-                ...prevData,
-                [category]: {
-                    ...prevData[category],
-                    [entretien]: isActive,
-                },
-            }));
+    const handleUpdate = (category: string, entretien: string, isActive: boolean) => {
+        startTransition(async () => {
+            try {
+                // Optimistic update
+                setData(prevData => ({
+                    ...prevData,
+                    [category]: {
+                        ...prevData[category],
+                        [entretien]: isActive,
+                    },
+                }));
 
-            const response = await fetch('/api/update-category-entretiens', {
-                method: 'PUT',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify({ category, entretien, isActive }),
-            });
-
-            const result = await response.json();
-
-            if (result.success) {
+                await updateCategoryEntretiens(category, entretien, isActive);
+                
                 toast({
                     title: 'Succès',
                     description: `Paramètre mis à jour pour ${category}. Le planning doit être regénéré.`,
                 });
-            } else {
+            } catch (error: any) {
                 toast({
                     variant: 'destructive',
                     title: 'Erreur',
-                    description: `Impossible de mettre à jour le paramètre : ${result.message}`,
+                    description: `Impossible de mettre à jour le paramètre : ${error.message}`,
                 });
                 // Revert on error
                 setData(initialData);
             }
-        } catch (error: any) {
-            toast({
-                variant: 'destructive',
-                title: 'Erreur',
-                description: `Erreur réseau : ${error.message}`,
-            });
-            // Revert on error
-            setData(initialData);
-        } finally {
-            setIsUpdating(false);
-        }
+        });
     };
 
     return (
@@ -82,7 +66,7 @@ export function CategoryParametersTable({ categories, initialData }: Props) {
                             Gérez les entretiens à inclure pour chaque catégorie via le menu déroulant.
                         </CardDescription>
                     </div>
-                    {isUpdating && <Loader2 className="h-5 w-5 animate-spin" />}
+                    {isPending && <Loader2 className="h-5 w-5 animate-spin" />}
                 </div>
             </CardHeader>
             <CardContent>
@@ -109,7 +93,7 @@ export function CategoryParametersTable({ categories, initialData }: Props) {
                                         <TableCell className="text-right">
                                             <DropdownMenu>
                                                 <DropdownMenuTrigger asChild>
-                                                    <Button variant="outline" size="sm" disabled={isUpdating}>
+                                                    <Button variant="outline" size="sm" disabled={isPending}>
                                                         Gérer les entretiens
                                                         <ChevronDown className="ml-2 h-4 w-4" />
                                                     </Button>
@@ -122,7 +106,7 @@ export function CategoryParametersTable({ categories, initialData }: Props) {
                                                             key={entretien}
                                                             checked={data[category]?.[entretien] ?? false}
                                                             onCheckedChange={(checked) => handleUpdate(category, entretien, !!checked)}
-                                                            disabled={isUpdating}
+                                                            disabled={isPending}
                                                         >
                                                             {entretien}
                                                         </DropdownMenuCheckboxItem>

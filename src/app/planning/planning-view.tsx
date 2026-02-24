@@ -1,4 +1,5 @@
 
+
 'use client';
 
 import React, { useState, useTransition, useCallback, useEffect } from 'react';
@@ -36,6 +37,7 @@ type Intervention = {
     niveau: string;
     realise?: boolean;
     date_realisation?: string;
+    inBreakdown?: boolean;
 };
 
 type PlanningMatrix = {
@@ -293,6 +295,9 @@ export function PlanningView({ mode }: PlanningViewProps) {
                 if (intervention.realise) {
                     return `"${intervention.date_realisation} (R)"`;
                 }
+                if (intervention.inBreakdown) {
+                    return `"${intervention.date_programmee} (P)"`;
+                }
                 return `"${intervention.date_programmee} (${intervention.niveau})"`;
             }
             return `"${cell || ''}"`;
@@ -317,7 +322,9 @@ export function PlanningView({ mode }: PlanningViewProps) {
  const getCellClass = (intervention: Intervention) => {
     if (!intervention) return '';
     if (intervention.realise) {
-        if (intervention.niveau === 'HP') return 'bg-gray-400 text-white font-bold';
+        return 'bg-white text-black font-bold border border-black';
+    }
+    if (intervention.inBreakdown) {
         return 'bg-black text-white font-bold';
     }
     const n = intervention.niveau?.toUpperCase();
@@ -503,4 +510,6 @@ export function PlanningView({ mode }: PlanningViewProps) {
     </div>
   );
 }
+
+
 

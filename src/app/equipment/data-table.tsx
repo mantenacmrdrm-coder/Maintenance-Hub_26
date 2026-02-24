@@ -13,7 +13,7 @@ import {
 import { Input } from '@/components/ui/input';
 import { Badge } from '@/components/ui/badge';
 import { Button } from '@/components/ui/button';
-import { Eye, ListFilter } from 'lucide-react';
+import { Eye, ListFilter, Pencil } from 'lucide-react';
 import type { Equipment } from '@/lib/types';
 import {
   Select,
@@ -22,6 +22,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from '@/components/ui/select';
+import { DeleteEquipmentButton } from './delete-equipment-button';
 
 export function EquipmentDataTable({ data }: { data: Equipment[] }) {
   const [filter, setFilter] = useState('');
@@ -96,7 +97,6 @@ export function EquipmentDataTable({ data }: { data: Equipment[] }) {
               <TableHead>Désignation</TableHead>
               <TableHead>Marque</TableHead>
               <TableHead>Catégorie</TableHead>
-              <TableHead>Statut</TableHead>
               <TableHead className="text-right">Actions</TableHead>
             </TableRow>
           </TableHeader>
@@ -110,24 +110,28 @@ export function EquipmentDataTable({ data }: { data: Equipment[] }) {
                   <TableCell className="font-medium">{equip.designation}</TableCell>
                   <TableCell>{equip.marque}</TableCell>
                   <TableCell>{equip.categorie}</TableCell>
-                  <TableCell>
-                    <Badge variant={equip.statut === 'actif' ? 'default' : 'secondary'} className={equip.statut === 'actif' ? 'bg-green-600' : ''}>
-                      {equip.statut}
-                    </Badge>
-                  </TableCell>
                   <TableCell className="text-right">
-                    <Button asChild variant="ghost" size="icon">
-                      <Link href={`/equipment/${equip.matricule}`}>
-                        <Eye className="h-4 w-4" />
-                        <span className="sr-only">Voir détails</span>
-                      </Link>
-                    </Button>
+                    <div className="flex justify-end gap-2">
+                      <Button asChild variant="ghost" size="icon">
+                        <Link href={`/equipment/${equip.matricule}`}>
+                          <Eye className="h-4 w-4" />
+                          <span className="sr-only">Voir détails</span>
+                        </Link>
+                      </Button>
+                      <Button asChild variant="ghost" size="icon">
+                        <Link href={`/equipment/edit/${equip.id}`}>
+                          <Pencil className="h-4 w-4" />
+                           <span className="sr-only">Modifier</span>
+                        </Link>
+                      </Button>
+                      <DeleteEquipmentButton equipmentId={equip.id} />
+                    </div>
                   </TableCell>
                 </TableRow>
               ))
             ) : (
               <TableRow>
-                <TableCell colSpan={6} className="h-24 text-center">
+                <TableCell colSpan={5} className="h-24 text-center">
                   Aucun résultat pour les filtres sélectionnés.
                 </TableCell>
               </TableRow>

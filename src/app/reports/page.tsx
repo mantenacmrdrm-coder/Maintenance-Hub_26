@@ -15,14 +15,14 @@ import {
   TableRow,
 } from '@/components/ui/table';
 import { Button } from '@/components/ui/button';
-import { Eye, FileText } from 'lucide-react';
+import { Eye } from 'lucide-react';
 import { getWeeklyReports } from '@/lib/actions/maintenance-actions';
-import { format } from 'date-fns';
-import { fr } from 'date-fns/locale';
+import dayjs from 'dayjs';
+import 'dayjs/locale/fr';
 import { GenerateReportButton } from './generate-report-button';
 import { DeleteReportButton } from './delete-report-button';
 
-export const dynamic = 'force-dynamic';
+dayjs.locale('fr');
 
 export default async function ReportsPage() {
   const reports = await getWeeklyReports();
@@ -65,10 +65,10 @@ export default async function ReportsPage() {
                     reports.map((report) => (
                       <TableRow key={report.id}>
                         <TableCell className="font-medium">
-                          Rapport du {format(new Date(report.start_date), 'dd/MM/yyyy', {locale: fr})} au {format(new Date(report.end_date), 'dd/MM/yyyy', {locale: fr})}
+                          Rapport du {dayjs(report.start_date).format('DD/MM/YYYY')} au {dayjs(report.end_date).format('DD/MM/YYYY')}
                         </TableCell>
                         <TableCell>
-                           {format(new Date(report.generated_at), 'dd/MM/yyyy HH:mm', {locale: fr})}
+                           {dayjs(report.generated_at).format('DD/MM/YYYY HH:mm')}
                         </TableCell>
                         <TableCell className="text-right">
                           <div className="flex justify-end gap-2">

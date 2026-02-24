@@ -9,6 +9,8 @@ import { Input } from '@/components/ui/input';
 import { Loader2, Download } from 'lucide-react';
 import { useToast } from '@/hooks/use-toast';
 import { runHistoryGeneration, getHistory } from '@/lib/actions/maintenance-actions';
+import dayjs from 'dayjs';
+import { cn } from '@/lib/utils';
 
 import {
   Table,
@@ -126,6 +128,24 @@ export function HistoryView() {
     });
   };
 
+  const getDateCellClass = (dateString: string | null): string => {
+    if (!dateString) return '';
+    // Basic check to avoid trying to parse matricules etc. as dates
+    if (!/^\d{2}\/\d{2}\/\d{4}$/.test(dateString)) return '';
+
+    const date = dayjs(dateString, 'DD/MM/YYYY');
+    if (!date.isValid()) return '';
+
+    const today = dayjs();
+    const diffInMonths = today.diff(date, 'month');
+
+    if (diffInMonths < 1) return 'bg-primary/25';   // Moins d'un mois (plus récent)
+    if (diffInMonths < 3) return 'bg-primary/20';
+    if (diffInMonths < 6) return 'bg-primary/15';
+    if (diffInMonths < 12) return 'bg-primary/10';
+    if (diffInMonths < 24) return 'bg-primary/[.05]'; // Plus ancien
+    return ''; // Très ancien
+  };
 
   return (
     <div className="space-y-6">
@@ -211,7 +231,14 @@ export function HistoryView() {
                                     {paginatedRows.length > 0 ? paginatedRows.map((row, rowIndex) => (
                                         <TableRow key={rowIndex}>
                                            {row.map((cell, cellIndex) => (
-                                                <TableCell key={cellIndex} className={`text-xs whitespace-nowrap ${cellIndex === 0 ? 'font-bold whitespace-nowrap' : ''}`}>
+                                                <TableCell 
+                                                    key={cellIndex} 
+                                                    className={cn(
+                                                        'text-xs whitespace-nowrap transition-colors duration-300', 
+                                                        cellIndex === 0 ? 'font-bold' : 'text-center',
+                                                        cellIndex > 0 && getDateCellClass(cell)
+                                                    )}
+                                                >
                                                     {cell}
                                                 </TableCell>
                                            ))}
