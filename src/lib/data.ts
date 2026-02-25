@@ -77,7 +77,21 @@ function findMatchedEntretien(piece: string): (typeof OFFICIAL_ENTRETIENS)[numbe
 
 let historyCache: { headers: readonly string[]; rows: (string | null)[][]; } | null = null;
 let historyCacheTimestamp: number | null = null;
-const DB_PATH = path.join(process.cwd(), '.gmao_data.db');
+
+// Database file path selection:
+// - If `SQLITE_DB_PATH` env var is set, use it.
+// - In production (e.g. Vercel), default to the OS temp dir because serverless filesystems are ephemeral/read-only.
+// - Locally, keep the DB in the project root for convenience.
+const SQLITE_DB_PATH_ENV = process.env.SQLITE_DB_PATH;
+let DB_PATH: string;
+if (SQLITE_DB_PATH_ENV && SQLITE_DB_PATH_ENV.trim() !== '') {
+    DB_PATH = SQLITE_DB_PATH_ENV;
+} else if (process.env.VERCEL || process.env.NODE_ENV === 'production') {
+    DB_PATH = path.join(os.tmpdir(), '.gmao_data.db');
+    console.warn('Using ephemeral SQLite DB path (not persistent):', DB_PATH);
+} else {
+    DB_PATH = path.join(process.cwd(), '.gmao_data.db');
+}
 
 const normalize = (str: string | null | undefined): string => {
     if (!str) return '';
