@@ -1,6 +1,5 @@
 'use client';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { useMounted } from '@/hooks/use-mounted';
 import { CardDescription } from '../ui/card';
 import type { MonthlyPreventativeStats } from '@/lib/types';
 
@@ -17,16 +16,6 @@ const barConfig = {
 };
 
 export function PreventativeOverviewChart({ data }: Props) {
-  const isMounted = useMounted();
-
-  if (!isMounted) {
-    return (
-      <div className="h-[350px] w-full flex items-center justify-center">
-        <CardDescription>Chargement du graphique...</CardDescription>
-      </div>
-    );
-  }
-  
   const hasData = data.some(month => Object.values(month).some(val => typeof val === 'number' && val > 0));
 
   if (!hasData) {

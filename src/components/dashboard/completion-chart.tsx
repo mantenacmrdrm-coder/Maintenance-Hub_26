@@ -3,15 +3,12 @@ import { useMemo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import { CardDescription } from '../ui/card';
 import type { FollowUpStats } from '@/lib/types';
-import { useMounted } from '@/hooks/use-mounted';
 
 type Props = {
   data: FollowUpStats | null;
 };
 
 export function CompletionChart({ data }: Props) {
-  const isMounted = useMounted();
-
   const chartData = useMemo(() => {
     if (!data || data.totalPlanifie === 0) {
       return {
@@ -38,14 +35,6 @@ export function CompletionChart({ data }: Props) {
   }, [data]);
 
   const COLORS = ['hsl(var(--primary))', 'hsl(var(--muted))'];
-
-  if (!isMounted) {
-    return (
-      <div className="flex h-64 w-full items-center justify-center">
-        <CardDescription>Chargement...</CardDescription>
-      </div>
-    );
-  }
 
   if (chartData.pieData.length === 0 || chartData.totalPlanifie === 0) {
     return (

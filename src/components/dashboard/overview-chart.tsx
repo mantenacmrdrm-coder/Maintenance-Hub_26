@@ -1,6 +1,5 @@
 'use client';
 import { BarChart, Bar, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
-import { useMounted } from '@/hooks/use-mounted';
 import type { MonthlyCount } from '@/lib/types';
 import { CardDescription } from '../ui/card';
 
@@ -9,16 +8,6 @@ type Props = {
 };
 
 export function OverviewChart({ data }: Props) {
-  const isMounted = useMounted();
-
-  if (!isMounted) {
-    return (
-      <div className="h-[350px] w-full flex items-center justify-center">
-        <CardDescription>Chargement du graphique...</CardDescription>
-      </div>
-    );
-  }
-
   return (
     <div className="h-[350px] w-full">
         <ResponsiveContainer width="100%" height="100%">
