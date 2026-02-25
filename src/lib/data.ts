@@ -1,3 +1,4 @@
+
 'use server';
 
 import fs from 'fs/promises';
@@ -1357,6 +1358,7 @@ export async function getCurativeHistoryForEquipment(matricule: string): Promise
               dateEntree: dateEntree.isValid() ? dateEntree.format('DD/MM/YYYY') : row.date_entree,
               dateSortie: dateSortie.isValid() ? dateSortie.format('DD/MM/YYYY') : row.date_sortie,
               dureeIntervention: joursIndisponibilite,
+              piecesRemplacees: parsePieces(row.pieces),
               details: {
                   Intervenant: row.intervenant,
                   Affectation: row.affectation,
@@ -1914,14 +1916,14 @@ export async function getMonthlyPreventativeStats(year: number, month?: number):
             const rows = await db.all(query, params);
 
             const monthlyData = JSON.parse(JSON.stringify(defaultData.monthlyData));
-            let totalOil = 0;
+            let totalHuile = 0;
+            let graisseQty = 0;
             const oilByType: Record<string, number> = {};
 
             const oilColumns = {
                 engine: ['15w40', '15w40_v', '15w40_quartz', '15w40_4400'],
                 hydraulic: ['10w', 't32', 'hvol', 't46'],
                 transmission: ['90', 'tvol', 't30'],
-                grease: ['graisse']
             };
             const allOilCols = Object.values(oilColumns).flat();
 
@@ -1962,13 +1964,18 @@ export async function getMonthlyPreventativeStats(year: number, month?: number):
                 for (const col of allOilCols) {
                     const qty = getQty(col);
                     if (qty > 0) {
-                        totalOil += qty;
+                        totalHuile += qty;
                         oilByType[col] = (oilByType[col] || 0) + qty;
                     }
                 }
+                const currentGraisse = getQty('graisse');
+                if(currentGraisse > 0) {
+                    graisseQty += currentGraisse;
+                    oilByType['graisse'] = (oilByType['graisse'] || 0) + currentGraisse;
+                }
             }
             
-            return { monthlyData, totalOil, oilByType };
+            return { monthlyData, totalOil: totalHuile, oilByType };
         });
     } catch (e: any) {
         if (e.code === 'SQLITE_ERROR' && e.message.includes('no such table')) {
@@ -3048,6 +3055,7 @@ export async function getLastStockEntryDate(lubricantType: string): Promise<stri
 
 
     
+
 
 
 

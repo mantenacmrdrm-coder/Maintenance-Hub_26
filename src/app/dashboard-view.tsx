@@ -17,27 +17,25 @@ import 'dayjs/locale/fr';
 import dynamic from 'next/dynamic';
 import { Skeleton } from '@/components/ui/skeleton';
 import type { DashboardData } from '@/lib/types';
+import { useMounted } from '@/hooks/use-mounted';
 
 dayjs.locale('fr');
 
 const OverviewChart = dynamic(
   () => import('@/components/dashboard/overview-chart').then(mod => mod.OverviewChart),
   {
-    ssr: false,
     loading: () => <Skeleton className="h-[350px] w-full" />,
   }
 );
 const CompletionChart = dynamic(
   () => import('@/components/dashboard/completion-chart').then(mod => mod.CompletionChart),
   {
-    ssr: false,
     loading: () => <Skeleton className="h-64 w-full" />,
   }
 );
 const PreventativeOverviewChart = dynamic(
   () => import('@/components/dashboard/preventative-overview-chart').then(mod => mod.PreventativeOverviewChart),
   {
-    ssr: false,
     loading: () => <Skeleton className="h-[350px] w-full" />,
   }
 );
@@ -48,9 +46,50 @@ type DashboardViewProps = {
 }
 
 export function DashboardView({ data }: DashboardViewProps) {
+    const isMounted = useMounted();
     const { year, month } = data;
     const selectedMonthName = month ? dayjs().month(month - 1).format('MMMM') : null;
     const descriptionPeriod = selectedMonthName ? `pour ${selectedMonthName.charAt(0).toUpperCase() + selectedMonthName.slice(1)} ${year}` : `pour l'année ${year}`;
+
+    if (!isMounted) {
+        return (
+            <div className="space-y-6">
+                <header className="print-hide">
+                    <div className="flex flex-col sm:flex-row gap-4 justify-between items-start sm:items-center">
+                        <div>
+                            <Skeleton className="h-9 w-64" />
+                            <Skeleton className="h-5 w-96 mt-2" />
+                        </div>
+                        <div className="flex gap-2 items-center">
+                            <Skeleton className="h-10 w-44" />
+                            <Skeleton className="h-10 w-32" />
+                            <Skeleton className="h-10 w-32" />
+                        </div>
+                    </div>
+                </header>
+                <main id="dashboard-content" className="grid gap-6">
+                    <div className="grid gap-6 md:grid-cols-2 lg:grid-cols-4">
+                        <Skeleton className="h-32" />
+                        <Skeleton className="h-32" />
+                        <Skeleton className="h-32" />
+                        <Skeleton className="h-32" />
+                    </div>
+                    <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+                        <Skeleton className="h-[450px] lg:col-span-2" />
+                        <div className="space-y-6">
+                            <Skeleton className="h-64" />
+                            <Skeleton className="h-64" />
+                        </div>
+                    </div>
+                     <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                        <Skeleton className="h-52" />
+                        <Skeleton className="h-52" />
+                        <Skeleton className="h-80" />
+                    </div>
+                </main>
+            </div>
+        );
+    }
 
     return (
         <div className="space-y-6">
