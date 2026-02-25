@@ -18,7 +18,9 @@ import type { BonDeSortie, PreventativeMaintenanceEntry, CurativeMaintenanceEntr
 import { Readable } from 'stream';
 import isBetween from 'dayjs/plugin/isBetween';
 import initialStocks from './initial-stock.json';
+import 'dayjs/locale/fr';
 
+dayjs.locale('fr');
 dayjs.extend(isBetween);
 dayjs.extend(isSameOrBefore);
 dayjs.extend(isSameOrAfter);
@@ -86,10 +88,12 @@ const normalize = (str: string | null | undefined): string => {
 };
 
 const getDb = async () => {
-  return open({
+  const db = await open({
     filename: DB_PATH,
     driver: sqlite3.Database,
   });
+  await db.exec('PRAGMA journal_mode = WAL;');
+  return db;
 };
 
 const withDb = async <T>(operation: (db: Awaited<ReturnType<typeof getDb>>) => Promise<T>): Promise<T> => {
@@ -572,7 +576,7 @@ export async function generateHistoryMatrix() {
           if (pieces.startsWith('remplacement de ') || pieces.startsWith('changement de ')) {
               pieces = pieces.substring(pieces.indexOf(' de ') + 4);
           }
-          const piecesList = pieces.split('-').map(p => p.trim()).filter(Boolean);
+          const piecesList = pieces.split('-').map((p: string) => p.trim()).filter(Boolean);
           
           const releve = extraireReleve(row.panne_declaree);
 
@@ -689,7 +693,7 @@ export async function getHistoryMatrixFromCache(dbInstance?: Database) {
         counts['relevé compteur'] = releveCount;
 
 
-        const groupedByMatriculeAndMonth: { [key: string]: { [op: string]: string, releve?: number | null, dates: Set<string> } } = {};
+        const groupedByMatriculeAndMonth: { [key: string]: { [op: string]: string | number | null | undefined | Set<string>, releve?: number | null, dates: Set<string> } } = {};
         
         for (const op of allOperations) {
             const date = dayjs(op.date, 'DD/MM/YYYY');
@@ -734,7 +738,8 @@ export async function getHistoryMatrixFromCache(dbInstance?: Database) {
                 if (header === 'relevé compteur') {
                     row.push(groupData.releve?.toString() || null);
                 } else {
-                    row.push(groupData[header] || null);
+                    const value = groupData[header];
+                    row.push(typeof value === 'string' ? value : (typeof value === 'number' ? value.toString() : null));
                 }
             }
             rows.push(row);
@@ -875,7 +880,7 @@ export const generatePlanning = async (year: number) => {
             { name: paramHeaders.find(h => h.toLowerCase().includes('contrôler')) || '', level: 'C' },
             { name: paramHeaders.find(h => h.toLowerCase().includes('nettoyage')) || '', level: 'N' },
             { name: paramHeaders.find(h => h.toLowerCase().includes('changement')) || '', level: 'CH' },
-        ].filter(c => c.name).map(c => {
+        ].filter((c): c is { name: string, level: 'C'|'N'|'CH' } => !!c.name).map(c => {
             levelColNames.push(c.name);
             return c;
         });
@@ -1118,7 +1123,7 @@ const createPlanningMatrix = async (db: Database, year: number, filter = '', pag
     for (const equipmentMatricule of paginatedMatricules) {
         for (let monthIndex = 0; monthIndex < 12; monthIndex++) {
             const rowData: any[] = [equipmentMatricule, dayjs().month(monthIndex).format('MMMM')];
-            const cells = Array.from({ length: OFFICIAL_ENTRETIENS.length }, () => null);
+            const cells: (any | null)[] = Array.from({ length: OFFICIAL_ENTRETIENS.length }, () => null);
 
             const interventionsForMonth = (interventionsByMatricule[equipmentMatricule] || [])
                 .filter(inv => inv.month === monthIndex);
@@ -1152,13 +1157,13 @@ const createPlanningMatrix = async (db: Database, year: number, filter = '', pag
                     return best;
                 });
                 
-                cells[colIndex] = [{
+                cells[colIndex] = {
                     date_programmee: bestIntervention.date_programmee,
                     niveau: bestIntervention.niveau,
                     realise: bestIntervention.realise,
                     date_realisation: bestIntervention.date_realisation,
                     inBreakdown: bestIntervention.inBreakdown,
-                }];
+                };
             }
             
             matrixRows.push([...rowData, ...cells]);
@@ -1344,7 +1349,7 @@ export async function getCurativeHistoryForEquipment(matricule: string): Promise
           } else {
             // Fallback to stored value if dates are invalid
             const storedValue = parseInt(row.nbr_indisponibilite, 10);
-            joursIndisponibilite = !isNaN(storedValue) ? storedValue : 0;
+            joursIndisponibilite = !isNaN(storedValue) ? storedValue : 1;
           }
 
           const officialTags = OFFICIAL_ENTRETIENS.filter(entretien => 
@@ -2844,7 +2849,7 @@ export async function updateConsumption(id: number, data: any) {
         date_iso: dateDayjs.isValid() ? dateDayjs.format('YYYY-MM-DD') : null
     };
 
-    const columnsToUpdate = [...CONSOLIDE_COLUMNS_ORDER.filter(c => c !== 'id' && c !== 'n' && c !== 'designation' && data.hasOwnProperty(c)), 'date_iso'];
+    const columnsToUpdate = [...CONSOLIDE_COLUMNS_ORDER.filter(c => c !== 'n' && c !== 'designation' && data.hasOwnProperty(c)), 'date_iso'];
     if (columnsToUpdate.length === 0) {
         throw new Error("No valid columns to update.");
     }
@@ -3055,6 +3060,8 @@ export async function getLastStockEntryDate(lubricantType: string): Promise<stri
 
 
     
+
+
 
 
 

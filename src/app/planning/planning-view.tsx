@@ -31,6 +31,10 @@ import type { FollowUpStats } from '@/lib/types';
 import { Progress } from '@/components/ui/progress';
 import { ScrollArea } from '@/components/ui/scroll-area';
 import { Skeleton } from '@/components/ui/skeleton';
+import dayjs from 'dayjs';
+import 'dayjs/locale/fr';
+
+dayjs.locale('fr');
 
 type Intervention = {
     date_programmee: string;
@@ -289,7 +293,7 @@ export function PlanningView({ mode }: PlanningViewProps) {
       const csvContent = [
         headers.join(';'),
         ...rows.map(row => {
-          return row.map(cell => {
+          return row.map((cell: any) => {
             if (Array.isArray(cell) && cell.length > 0) {
                 const intervention: Intervention = cell[0];
                 if (intervention.realise) {
@@ -459,7 +463,7 @@ export function PlanningView({ mode }: PlanningViewProps) {
                                 )) : (
                                 <TableRow>
                                     <TableCell colSpan={planningData.headers.length} className="h-24 text-center">
-                                    Aucun résultat pour les filtres sélectionnés.
+                                    Aucun résultat pour votre filtre.
                                     </TableCell>                          
                                 </TableRow>
                                 )}
@@ -510,6 +514,7 @@ export function PlanningView({ mode }: PlanningViewProps) {
     </div>
   );
 }
+
 
 
 

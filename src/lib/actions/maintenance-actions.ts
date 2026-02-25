@@ -1,3 +1,4 @@
+
 'use server';
 
 import { 
@@ -70,8 +71,9 @@ import isBetween from 'dayjs/plugin/isBetween';
 import { z } from 'zod';
 import { redirect } from 'next/navigation';
 import { LUBRICANT_TYPES } from '../constants';
+import 'dayjs/locale/fr';
 
-
+dayjs.locale('fr');
 dayjs.extend(isSameOrBefore);
 dayjs.extend(isBetween);
 

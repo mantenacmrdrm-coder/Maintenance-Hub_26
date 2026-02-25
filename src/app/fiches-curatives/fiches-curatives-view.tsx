@@ -1,3 +1,4 @@
+
 'use client';
 
 import { useState, useTransition } from 'react';
@@ -6,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle, CardDescription } from '@/com
 import { Input } from '@/components/ui/input';
 import { Loader2, Printer, Search, Download, CalendarIcon } from 'lucide-react';
 import dayjs from 'dayjs';
+import 'dayjs/locale/fr';
 import { useToast } from '@/hooks/use-toast';
 import { getCurativeFichesAction } from '@/lib/actions/maintenance-actions';
 import type { CurativeFicheData } from '@/lib/types';
@@ -14,6 +16,8 @@ import * as XLSX from 'xlsx';
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover';
 import { Calendar } from '@/components/ui/calendar';
 import { cn } from '@/lib/utils';
+
+dayjs.locale('fr');
 
 export function FichesCurativesView() {
   const [isPending, startTransition] = useTransition();
@@ -113,7 +117,7 @@ export function FichesCurativesView() {
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
-                <Calendar mode="single" selected={startDate} onSelect={setStartDate} initialFocus />
+                <Calendar mode="single" selected={startDate} onSelect={setStartDate} />
               </PopoverContent>
             </Popover>
           </div>
@@ -127,7 +131,7 @@ export function FichesCurativesView() {
                 </Button>
               </PopoverTrigger>
               <PopoverContent className="w-auto p-0" align="start">
-                <Calendar mode="single" selected={endDate} onSelect={setEndDate} initialFocus />
+                <Calendar mode="single" selected={endDate} onSelect={setEndDate} />
               </PopoverContent>
             </Popover>
           </div>
